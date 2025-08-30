@@ -1,0 +1,162 @@
+name: PR Preview
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set env (lowercase user, IMAGE, PR_NUM)
+        run: |
+          echo "PR_NUM=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "DH_USER=$(echo '${{ secrets.DOCKERHUB_USERNAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          echo "IMAGE=$(echo '${{ secrets.DOCKERHUB_USERNAME }}' | tr '[:upper:]' '[:lower:]')/tg-bot-pro" >> $GITHUB_ENV
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push PR image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:pr-${{ env.PR_NUM }}-latest
+            ${{ env.IMAGE }}:pr-${{ env.PR_NUM }}-${{ github.sha }}
+
+  deploy-preview:
+    needs: build-and-push-pr
+    runs-on: [self-hosted, Windows, X64, tg-bot]
+    timeout-minutes: 30
+    env:
+      TG_Token: ${{ secrets.TG_Token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set env for Windows job
+        shell: powershell
+        run: |
+          $u='${{ secrets.DOCKERHUB_USERNAME }}'.ToLower()
+          "IMAGE=$u/tg-bot-pro" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PR_NUM=${{ github.event.pull_request.number }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "IMAGE=$u/tg-bot-pro; PR_NUM=$env:PR_NUM"
+
+      - name: Runner & Docker info
+        shell: powershell
+        run: |
+          whoami
+          $PSVersionTable
+          docker version
+          (docker compose version) -or (docker-compose --version)
+
+      - name: Login DockerHub on remote
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull PR image
+        shell: powershell
+        run: |
+          docker pull "$($env:IMAGE):pr-$($env:PR_NUM)-latest"
+
+      - name: Ensure compose.preview.yml exists
+        shell: powershell
+        run: |
+          if (!(Test-Path 'compose.preview.yml')) {
+            $lines = @(
+              'services:',
+              '  bot:',
+              ('    image: ' + $env:IMAGE + ':pr-' + $env:PR_NUM + '-latest'),
+              ('    container_name: tg-bot-pro-pr-' + $env:PR_NUM),
+              '    restart: unless-stopped',
+              '    environment:',
+              '      - TG_Token=${TG_Token}'
+            )
+            Set-Content -Path 'compose.preview.yml' -Value $lines -Encoding UTF8
+          }
+
+      - name: Up preview stack
+        shell: powershell
+        env:
+          TG_Token: ${{ env.TG_Token }}
+        run: |
+          echo "::add-mask::${env:TG_Token}"
+          docker compose -f compose.preview.yml -p tg_bot_pro_pr_$env:PR_NUM up -d --remove-orphans --no-build
+
+      - name: Collect preview logs (always)
+        shell: powershell
+        if: always()
+        continue-on-error: true
+        run: |
+          docker compose -f compose.preview.yml -p tg_bot_pro_pr_$env:PR_NUM logs --no-color > preview.log 2>&1
+          if (!(Test-Path -Path 'preview.log')) { '' | Out-File -FilePath 'preview.log' -Encoding utf8 }
+
+      - name: Sanitize logs (mask tokens)
+        shell: powershell
+        if: always()
+        run: |
+          $c = Get-Content -Path 'preview.log' -Raw -ErrorAction SilentlyContinue
+          if ($null -eq $c) { $c = '' }
+          Add-Type -AssemblyName 'System.Text.RegularExpressions'
+          $c = [System.Text.RegularExpressions.Regex]::Replace($c, '\b\d{9}:[A-Za-z0-9_-]{35}\b', '***')
+          $c = [System.Text.RegularExpressions.Regex]::Replace($c, '(?i)(BOT_TOKEN|API_KEY|TOKEN|SECRET)\s*[:=]\s*([^\s]+)', '$1=***')
+          Set-Content -Path 'preview.sanitized.log' -Value $c -Encoding UTF8
+          (Get-Content 'preview.sanitized.log' -Tail 200) | Out-File 'pr-tail.log' -Encoding UTF8
+          if (!(Test-Path -Path 'pr-tail.log')) { '' | Out-File -FilePath 'pr-tail.log' -Encoding utf8 }
+
+      - name: Upload full logs as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-${{ env.PR_NUM }}-logs
+          path: preview.sanitized.log
+          retention-days: 7
+
+      - name: Add tail to PR comment (200 lines)
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const pr = context.payload.pull_request.number;
+            let body = 'No logs captured';
+            try {
+              if (fs.existsSync('pr-tail.log')) {
+                const tail = fs.readFileSync('pr-tail.log','utf8');
+                body = "```\n" + tail + "\n```";
+              }
+            } catch (e) {}
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: pr,
+              body: "🧪 Preview logs (last 200 lines):\n" + body
+            });
+
+      - name: Step Summary (tail)
+        if: always()
+        shell: powershell
+        run: |
+          "### Preview logs (last 200 lines)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if (Test-Path 'pr-tail.log') { Get-Content 'pr-tail.log' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
+          '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

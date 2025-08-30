@@ -1,0 +1,8 @@
+aiogram==3.4.1
+aiofiles==23.2.1
+aiosqlite==0.19.0
+python-dotenv==1.0.0
+sqlalchemy==2.0.25
+alembic==1.13.1
+pydantic==2.5.3
+loguru==0.7.2
