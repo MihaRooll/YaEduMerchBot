@@ -33,7 +33,7 @@ PAYMENT_TOKEN=your_payment_provider_token
 ## Workflow файлы
 
 ### 1. deploy.yml
-Основной деплой при пуше в main ветку:
+Основной деплой при пуше в main ветку и при создании Pull Request:
 - Собирает Docker образ
 - Публикует в Docker Hub
 - Деплоит на production сервер

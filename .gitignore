@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # Bot specific
-config.py
+# Local database files should be ignored, but keep the default config module tracked
 *.db
 logs/
 temp/
