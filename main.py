@@ -32,8 +32,13 @@ async def main():
     )
     
     # Initialize bot and dispatcher
+    bot_token = settings.get_bot_token()
+    if not bot_token:
+        logging.error("Bot token not found! Please set BOT_TOKEN or TG_TOKEN environment variable.")
+        return
+    
     bot = Bot(
-        token=settings.BOT_TOKEN,
+        token=bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()

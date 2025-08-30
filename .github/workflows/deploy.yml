@@ -45,6 +45,7 @@ jobs:
     timeout-minutes: 30
     env:
       BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      TG_TOKEN: ${{ secrets.TG_TOKEN }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
       PAYMENT_TOKEN: ${{ secrets.PAYMENT_TOKEN }}
@@ -86,12 +87,14 @@ jobs:
         shell: powershell
         env:
           BOT_TOKEN: ${{ env.BOT_TOKEN }}
+          TG_TOKEN: ${{ env.TG_TOKEN }}
           DATABASE_URL: ${{ env.DATABASE_URL }}
           ADMIN_IDS: ${{ env.ADMIN_IDS }}
           PAYMENT_TOKEN: ${{ env.PAYMENT_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           echo "::add-mask::${env:BOT_TOKEN}"
+          echo "::add-mask::${env:TG_TOKEN}"
           echo "::add-mask::${env:PAYMENT_TOKEN}"
           docker compose -f compose.yml -p yaedumerchbot up -d --remove-orphans --no-build
 

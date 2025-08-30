@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
+      - TG_TOKEN=${TG_TOKEN}
       - DATABASE_URL=${DATABASE_URL:-sqlite:///bot.db}
       - ADMIN_IDS=${ADMIN_IDS}
       - PAYMENT_TOKEN=${PAYMENT_TOKEN}

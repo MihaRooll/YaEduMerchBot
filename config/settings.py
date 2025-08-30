@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     
     # Telegram Bot Configuration
     BOT_TOKEN: str = Field(default="", description="Telegram bot token")
+    TG_TOKEN: str = Field(default="", description="Telegram bot token (legacy)")
+    
+    def get_bot_token(self) -> str:
+        """Get bot token from either BOT_TOKEN or TG_TOKEN."""
+        return self.BOT_TOKEN or self.TG_TOKEN
     
     # Database Configuration
     DATABASE_URL: str = Field(default="sqlite:///bot.db", description="Database connection URL")
