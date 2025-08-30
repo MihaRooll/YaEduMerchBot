@@ -1,4 +1,4 @@
-name: PR Preview
+name: YaEduMerchBot PR Preview
 
 on:
   pull_request:
@@ -24,7 +24,7 @@ jobs:
         run: |
           echo "PR_NUM=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
           echo "DH_USER=$(echo '${{ secrets.DOCKERHUB_USERNAME }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-          echo "IMAGE=$(echo '${{ secrets.DOCKERHUB_USERNAME }}' | tr '[:upper:]' '[:lower:]')/tg-bot-pro" >> $GITHUB_ENV
+          echo "IMAGE=$(echo '${{ secrets.DOCKERHUB_USERNAME }}' | tr '[:upper:]' '[:lower:]')/yaedumerchbot" >> $GITHUB_ENV
 
       - uses: docker/setup-buildx-action@v3
 
@@ -45,10 +45,13 @@ jobs:
 
   deploy-preview:
     needs: build-and-push-pr
-    runs-on: [self-hosted, Windows, X64, tg-bot]
+    runs-on: [self-hosted, Windows, X64, yaedumerchbot]
     timeout-minutes: 30
     env:
-      TG_Token: ${{ secrets.TG_Token }}
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
+      PAYMENT_TOKEN: ${{ secrets.PAYMENT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,9 +59,9 @@ jobs:
         shell: powershell
         run: |
           $u='${{ secrets.DOCKERHUB_USERNAME }}'.ToLower()
-          "IMAGE=$u/tg-bot-pro" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "IMAGE=$u/yaedumerchbot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "PR_NUM=${{ github.event.pull_request.number }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "IMAGE=$u/tg-bot-pro; PR_NUM=$env:PR_NUM"
+          Write-Host "IMAGE=$u/yaedumerchbot; PR_NUM=$env:PR_NUM"
 
       - name: Runner & Docker info
         shell: powershell
@@ -85,12 +88,17 @@ jobs:
           if (!(Test-Path 'compose.preview.yml')) {
             $lines = @(
               'services:',
-              '  bot:',
+              '  yaedumerchbot-preview:',
               ('    image: ' + $env:IMAGE + ':pr-' + $env:PR_NUM + '-latest'),
-              ('    container_name: tg-bot-pro-pr-' + $env:PR_NUM),
+              ('    container_name: yaedumerchbot-pr-' + $env:PR_NUM),
               '    restart: unless-stopped',
               '    environment:',
-              '      - TG_Token=${TG_Token}'
+              '      - BOT_TOKEN=${BOT_TOKEN}',
+              '      - DATABASE_URL=${DATABASE_URL}',
+              '      - ADMIN_IDS=${ADMIN_IDS}',
+              '      - PAYMENT_TOKEN=${PAYMENT_TOKEN}',
+              '      - LOG_LEVEL=DEBUG',
+              '      - DEBUG=True'
             )
             Set-Content -Path 'compose.preview.yml' -Value $lines -Encoding UTF8
           }
@@ -98,17 +106,22 @@ jobs:
       - name: Up preview stack
         shell: powershell
         env:
-          TG_Token: ${{ env.TG_Token }}
+          BOT_TOKEN: ${{ env.BOT_TOKEN }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          ADMIN_IDS: ${{ env.ADMIN_IDS }}
+          PAYMENT_TOKEN: ${{ env.PAYMENT_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          echo "::add-mask::${env:TG_Token}"
-          docker compose -f compose.preview.yml -p tg_bot_pro_pr_$env:PR_NUM up -d --remove-orphans --no-build
+          echo "::add-mask::${env:BOT_TOKEN}"
+          echo "::add-mask::${env:PAYMENT_TOKEN}"
+          docker compose -f compose.preview.yml -p yaedumerchbot_pr_$env:PR_NUM up -d --remove-orphans --no-build
 
       - name: Collect preview logs (always)
         shell: powershell
         if: always()
         continue-on-error: true
         run: |
-          docker compose -f compose.preview.yml -p tg_bot_pro_pr_$env:PR_NUM logs --no-color > preview.log 2>&1
+          docker compose -f compose.preview.yml -p yaedumerchbot_pr_$env:PR_NUM logs --no-color > preview.log 2>&1
           if (!(Test-Path -Path 'preview.log')) { '' | Out-File -FilePath 'preview.log' -Encoding utf8 }
 
       - name: Sanitize logs (mask tokens)
@@ -149,14 +162,14 @@ jobs:
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: pr,
-              body: "🧪 Preview logs (last 200 lines):\n" + body
+              body: "🧪 YaEduMerchBot Preview logs (last 200 lines):\n" + body
             });
 
       - name: Step Summary (tail)
         if: always()
         shell: powershell
         run: |
-          "### Preview logs (last 200 lines)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          "### YaEduMerchBot Preview logs (last 200 lines)" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
           if (Test-Path 'pr-tail.log') { Get-Content 'pr-tail.log' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
           '```' | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

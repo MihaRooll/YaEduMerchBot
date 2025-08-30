@@ -16,6 +16,8 @@ YaEduMerchBot is a Telegram bot designed to handle educational merchandise opera
 
 ## Installation
 
+### Локальная разработка
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/MihaRooll/YaEduMerchBot.git
@@ -29,7 +31,7 @@ pip install -r requirements.txt
 
 3. Set up environment variables:
 ```bash
-cp .env.example .env
+cp env.example .env
 # Edit .env with your configuration
 ```
 
@@ -37,6 +39,23 @@ cp .env.example .env
 ```bash
 python main.py
 ```
+
+### Docker деплой
+
+1. Build and run with Docker:
+```bash
+docker build -t yaedumerchbot .
+docker run -d --name yaedumerchbot --env-file .env yaedumerchbot
+```
+
+2. Or use Docker Compose:
+```bash
+docker compose up -d
+```
+
+### Автоматический деплой
+
+Проект настроен для автоматического деплоя через GitHub Actions. См. [DEPLOY.md](DEPLOY.md) для подробной информации.
 
 ## Configuration
 
@@ -53,18 +72,26 @@ PAYMENT_TOKEN=your_payment_provider_token
 
 ```
 YaEduMerchBot/
-├── main.py              # Bot entry point
-├── bot/                 # Bot logic
+├── main.py                    # Bot entry point
+├── bot/                       # Bot logic
 │   ├── __init__.py
-│   ├── handlers/        # Message handlers
-│   ├── keyboards/       # Inline keyboards
-│   ├── middlewares/     # Bot middlewares
-│   └── utils/           # Utility functions
-├── database/            # Database models and operations
-├── config/              # Configuration files
-├── requirements.txt     # Python dependencies
-├── .env.example        # Environment variables template
-└── README.md           # This file
+│   ├── handlers/              # Message handlers
+│   ├── keyboards/             # Inline keyboards
+│   ├── middlewares/           # Bot middlewares
+│   └── utils/                 # Utility functions
+├── database/                  # Database models and operations
+├── config/                    # Configuration files
+├── .github/workflows/         # GitHub Actions CI/CD
+│   ├── deploy.yml            # Production deployment
+│   ├── pr-preview.yml        # PR preview deployment
+│   └── pr-preview-cleanup.yml # PR cleanup
+├── Dockerfile                 # Docker container configuration
+├── compose.yml               # Docker Compose for production
+├── compose.preview.yml       # Docker Compose for PR previews
+├── requirements.txt          # Python dependencies
+├── env.example              # Environment variables template
+├── DEPLOY.md                # Deployment documentation
+└── README.md                # This file
 ```
 
 ## Contributing

@@ -1,0 +1,23 @@
+services:
+  yaedumerchbot-preview:
+    image: ${DOCKERHUB_USERNAME}/yaedumerchbot:pr-${PR_NUM}-latest
+    container_name: yaedumerchbot-pr-${PR_NUM}
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///bot_pr_${PR_NUM}.db}
+      - ADMIN_IDS=${ADMIN_IDS}
+      - PAYMENT_TOKEN=${PAYMENT_TOKEN}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - DEBUG=True
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-8443}
+    volumes:
+      - bot_data_pr_${PR_NUM}:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "${WEBHOOK_PORT:-8443}:8443"
+
+volumes:
+  bot_data_pr_${PR_NUM}:
+    driver: local
