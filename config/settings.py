@@ -1,8 +1,9 @@
 """Configuration settings for the bot."""
 
 import os
-from typing import List
+from typing import List, Optional
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -10,34 +11,40 @@ class Settings(BaseSettings):
     """Bot configuration settings."""
     
     # Telegram Bot Configuration
-    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+    BOT_TOKEN: str = Field(default="", description="Telegram bot token")
     
     # Database Configuration
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///bot.db")
+    DATABASE_URL: str = Field(default="sqlite:///bot.db", description="Database connection URL")
     
     # Admin Configuration
-    ADMIN_IDS: List[int] = []
+    ADMIN_IDS: str = Field(default="", description="Comma-separated admin IDs")
     
     # Payment Configuration
-    PAYMENT_TOKEN: str = os.getenv("PAYMENT_TOKEN", "")
+    PAYMENT_TOKEN: str = Field(default="", description="Payment provider token")
     
     # Logging Configuration
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_LEVEL: str = Field(default="INFO", description="Logging level")
     
     # Other Configuration
-    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
-    WEBHOOK_URL: str = os.getenv("WEBHOOK_URL", "")
-    WEBHOOK_PORT: int = int(os.getenv("WEBHOOK_PORT", "8443"))
+    DEBUG: bool = Field(default=False, description="Debug mode")
+    WEBHOOK_URL: str = Field(default="", description="Webhook URL")
+    WEBHOOK_PORT: int = Field(default=8443, description="Webhook port")
     
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Parse ADMIN_IDS from comma-separated string
-        admin_ids_str = os.getenv("ADMIN_IDS", "")
-        if admin_ids_str:
-            try:
-                self.ADMIN_IDS = [int(id_.strip()) for id_ in admin_ids_str.split(",") if id_.strip()]
-            except ValueError:
-                self.ADMIN_IDS = []
+    @field_validator('DEBUG', mode='before')
+    @classmethod
+    def parse_debug(cls, v):
+        if isinstance(v, str):
+            return v.lower() in ('true', '1', 'yes', 'on')
+        return bool(v)
+    
+    def get_admin_ids(self) -> List[int]:
+        """Parse ADMIN_IDS string into list of integers."""
+        if not self.ADMIN_IDS:
+            return []
+        try:
+            return [int(id_.strip()) for id_ in self.ADMIN_IDS.split(",") if id_.strip()]
+        except ValueError:
+            return []
     
     class Config:
         env_file = ".env"

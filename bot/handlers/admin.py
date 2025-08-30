@@ -13,7 +13,7 @@ settings = Settings()
 @router.message(Command("admin"))
 async def admin_panel(message: Message) -> None:
     """Handle /admin command."""
-    if message.from_user.id not in settings.ADMIN_IDS:
+    if message.from_user.id not in settings.get_admin_ids():
         await message.answer("❌ У вас нет прав администратора.")
         return
     
@@ -32,7 +32,7 @@ async def admin_panel(message: Message) -> None:
 @router.message(Command("stats"))
 async def bot_stats(message: Message) -> None:
     """Show bot statistics."""
-    if message.from_user.id not in settings.ADMIN_IDS:
+    if message.from_user.id not in settings.get_admin_ids():
         await message.answer("❌ У вас нет прав администратора.")
         return
     
