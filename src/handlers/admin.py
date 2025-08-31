@@ -659,7 +659,7 @@ def _show_add_chat_form(chat_id, chat_manager):
     content += "• Бот сможет отправлять туда сообщения\n"
     content += "• Администраторы смогут управлять чатом"
     
-    keyboard = get_back_keyboard("admin_manage_chats")
+    keyboard = get_back_keyboard("admin_settings")
     chat_manager.update_chat_message(chat_id, content, keyboard)
 
 def _show_assign_coordinator_form(chat_id, chat_manager):
@@ -670,7 +670,7 @@ def _show_assign_coordinator_form(chat_id, chat_manager):
     content += "Функция назначения координаторов будет реализована в следующих версиях.\n\n"
     content += "Пока что используйте основные функции управления."
     
-    keyboard = get_back_keyboard("admin_manage_chats")
+    keyboard = get_back_keyboard("admin_settings")
     chat_manager.update_chat_message(chat_id, content, keyboard)
 
 def _show_chat_actions(chat_id, target_chat_id, chat_manager):
@@ -680,7 +680,7 @@ def _show_chat_actions(chat_id, target_chat_id, chat_manager):
     chat_data = storage.get("chats.json", str(target_chat_id))
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
-        keyboard = get_back_keyboard("admin_manage_chats")
+        keyboard = get_back_keyboard("admin_settings")
     else:
         # Форматируем дату
         try:
@@ -720,7 +720,7 @@ def _show_chat_actions(chat_id, target_chat_id, chat_manager):
         
         keyboard.add(InlineKeyboardButton("🔤 Изменить индекс", callback_data=f"change_prefix_{target_chat_id}"))
         keyboard.add(InlineKeyboardButton("🗑️ Удалить", callback_data=f"delete_chat_{target_chat_id}"))
-        keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="admin_manage_chats"))
+        keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="admin_settings"))
     
     chat_manager.update_chat_message(chat_id, content, keyboard)
 
@@ -1015,7 +1015,7 @@ def _handle_chat_deactivate(chat_id, user_id, target_chat_id, chat_manager):
     chat_data = storage.get("chats.json", str(target_chat_id))
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
-        keyboard = get_back_keyboard("admin_manage_chats")
+        keyboard = get_back_keyboard("admin_settings")
     else:
         # Деактивируем чат
         chat_data['is_active'] = False
@@ -1035,7 +1035,7 @@ def _handle_chat_deactivate(chat_id, user_id, target_chat_id, chat_manager):
         else:
             content = "❌ <b>Ошибка деактивации чата!</b>"
         
-        keyboard = get_back_keyboard("admin_manage_chats")
+        keyboard = get_back_keyboard("admin_settings")
     
     chat_manager.update_chat_message(chat_id, content, keyboard)
 
@@ -1070,7 +1070,7 @@ def _handle_chat_activate(chat_id, user_id, target_chat_id, chat_manager):
         else:
             content = "❌ <b>Ошибка активации чата!</b>"
         
-        keyboard = get_back_keyboard("admin_manage_chats")
+        keyboard = get_back_keyboard("admin_settings")
     
     chat_manager.update_chat_message(chat_id, content, keyboard)
 
@@ -1097,7 +1097,7 @@ def _handle_chat_delete(chat_id, user_id, target_chat_id, chat_manager):
         else:
             content = "❌ <b>Ошибка удаления чата!</b>"
         
-        keyboard = get_back_keyboard("admin_manage_chats")
+        keyboard = get_back_keyboard("admin_settings")
     
     chat_manager.update_chat_message(chat_id, content, keyboard)
 
@@ -1108,7 +1108,7 @@ def _show_change_prefix_form(chat_id, user_id, target_chat_id, chat_manager):
     chat_data = storage.get("chats.json", str(target_chat_id))
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
-        keyboard = get_back_keyboard("admin_manage_chats")
+        keyboard = get_back_keyboard("admin_settings")
     else:
         current_prefix = chat_data.get('prefix', 'Не задан')
         
@@ -1188,7 +1188,7 @@ def _handle_prefix_change(chat_id, user_id, target_chat_id, new_prefix, chat_man
             else:
                 content = "❌ <b>Ошибка изменения индекса!</b>"
             
-            keyboard = get_back_keyboard("admin_manage_chats")
+            keyboard = get_back_keyboard("admin_settings")
     
     chat_manager.update_chat_message(chat_id, content, keyboard)
 

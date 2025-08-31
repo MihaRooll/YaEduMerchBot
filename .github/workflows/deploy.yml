@@ -86,7 +86,7 @@ jobs:
         shell: powershell
         run: docker compose -f compose.yml config
 
-      - name: Preflight: free 8443 if busy by old prod container
+      - name: "Preflight: free 8443 if busy by old prod container"
         shell: powershell
         continue-on-error: true
         run: |
@@ -137,7 +137,7 @@ jobs:
           $c = [System.Text.RegularExpressions.Regex]::Replace($c, '(?i)(BOT_TOKEN|API_KEY|TOKEN|SECRET)\s*[:=]\s*([^\s]+)', '$1=***')
           Set-Content -Path 'deploy.sanitized.log' -Value $c -Encoding UTF8
           (Get-Content 'deploy.sanitized.log' -Tail 200) | Out-File 'deploy.tail.log' -Encoding UTF8
-          if (!(Test-Path -Path 'deploy.tail.log')) { '' | Out-File -FilePath 'deploy.tail.log' -Encoding utf8 }
+          if (!(Test-Path 'deploy.tail.log')) { '' | Out-File -FilePath 'deploy.tail.log' -Encoding utf8 }
 
       - name: Upload full logs as artifact
         if: always()

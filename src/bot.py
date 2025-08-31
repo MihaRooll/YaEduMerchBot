@@ -448,6 +448,7 @@ class YaEduMerchBot:
     
     def _handle_admin_manage_chats(self, call: CallbackQuery):
         """Обработчик управления чатами из меню настроек"""
+        logger.info(f"Обрабатываем admin_manage_chats для пользователя {call.from_user.id}")
         from .handlers.admin import _show_chats_list
         _show_chats_list(call.message.chat.id, self.chat_manager)
     
