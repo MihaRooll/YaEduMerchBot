@@ -169,7 +169,7 @@ class ChatManager:
         
         # Получаем статистику
         users = storage.get_all("users.json")
-        chats = storage.get_all("chats.json")
+        chats = storage.list_active_chats()
         orders = storage.get_all("orders.json")
         inventory = storage.get_all("inventory.json")
         
@@ -177,7 +177,7 @@ class ChatManager:
         content += f"👥 <b>Пользователи:</b> {len(users)}\n"
         content += f"💬 <b>Чаты:</b> {len(chats)}\n"
         content += f"📦 <b>Заказы:</b> {len(orders)}\n"
-        content += f"📋 <b>Товары в инвентаре:</b> {len(inventory)}\n\n"
+        content += f"📋 <b>Размеров в инвентаре:</b> {len(inventory.get('sizes', {}))}\n\n"
         
         # Статистика по ролям
         role_counts = {}

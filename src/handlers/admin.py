@@ -66,17 +66,17 @@ def register_admin_handlers(bot, chat_manager):
             return
         
         # Проверяем, не добавлен ли уже этот чат
-        existing_chat = storage.get("chats.json", str(chat_id))
+        existing_chat = storage.get_chat(chat_id)
         if existing_chat:
             bot.reply_to(message, "✅ Этот чат уже добавлен в систему!")
             return
         
         # Генерируем уникальный индекс для чата
-        all_chats = storage.get_all("chats.json")
+        all_chats = storage.list_active_chats()
         used_prefixes = set()
         
         # Собираем все используемые индексы
-        for chat_info in all_chats.values():
+        for chat_info in all_chats:
             if chat_info.get('prefix'):
                 used_prefixes.add(chat_info.get('prefix'))
         
@@ -115,7 +115,7 @@ def register_admin_handlers(bot, chat_manager):
         
         try:
             logger.info(f"Попытка сохранения чата: {chat_data}")
-            storage.set("chats.json", str(chat_id), chat_data)
+            storage.add_chat(chat_data)
             logger.info(f"Чат успешно сохранен в storage")
             
             # Отправляем подтверждение
@@ -560,7 +560,7 @@ def _show_chats_list(chat_id, chat_manager):
     """Показывает список чатов"""
     from ..keyboards import get_back_keyboard
     
-    chats = storage.get_all("chats.json")
+    chats = storage.list_active_chats()
     
     content = "💬 <b>Список чатов</b>\n\n"
     if not chats:
@@ -572,11 +572,11 @@ def _show_chats_list(chat_id, chat_manager):
         content += f"📊 Найдено чатов: {len(chats)}\n\n"
         
         # Сортируем чаты по дате добавления
-        sorted_chats = sorted(chats.items(), 
-                             key=lambda x: int(x[1].get('added_at', 0)), 
+        sorted_chats = sorted(chats, 
+                             key=lambda x: int(x.get('added_at', 0)), 
                              reverse=True)
         
-        for i, (chat_id_from_data, chat_data) in enumerate(sorted_chats[:10], 1):
+        for i, chat_data in enumerate(sorted_chats[:10], 1):
             # Получаем статус чата
             status = "✅ Активен" if chat_data.get('is_active', True) else "🚫 Неактивен"
             
@@ -600,7 +600,7 @@ def _show_chats_list(chat_id, chat_manager):
                 date_str = "Неизвестно"
             
             content += f"{i}. {type_emoji} <b>{chat_data.get('title', 'Без названия')}</b>\n"
-            content += f"   🆔 ID: {chat_id_from_data}\n"
+            content += f"   🆔 ID: {chat_data.get('chat_id', 'Неизвестно')}\n"
             content += f"   🔤 Индекс: {prefix}\n"
             content += f"   📅 Добавлен: {date_str}\n"
             content += f"   📊 Статус: {status}\n"
@@ -626,14 +626,15 @@ def _create_chats_list_keyboard(chats: list) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup(row_width=1)
     
     # Добавляем кнопки для каждого чата (максимум 10)
-    for i, (chat_id_from_data, chat_data) in enumerate(chats[:10]):
+    for i, chat_data in enumerate(chats[:10]):
         title = chat_data.get('title', 'Без названия')[:20]  # Ограничиваем длину
         status_emoji = "✅" if chat_data.get('is_active', True) else "🚫"
         prefix = chat_data.get('prefix', '❓')
+        chat_id = chat_data.get('chat_id', '')
         
         keyboard.add(InlineKeyboardButton(
             f"{status_emoji} [{prefix}] {title}",
-            callback_data=f"chat_actions_{chat_id_from_data}"
+            callback_data=f"chat_actions_{chat_id}"
         ))
     
     # Добавляем кнопку "Назад"
@@ -677,7 +678,7 @@ def _show_chat_actions(chat_id, target_chat_id, chat_manager):
     """Показывает действия с чатом"""
     from ..keyboards import get_back_keyboard
     
-    chat_data = storage.get("chats.json", str(target_chat_id))
+    chat_data = storage.get_chat(target_chat_id)
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
         keyboard = get_back_keyboard("admin_settings")
@@ -763,7 +764,7 @@ def _show_system_statistics(chat_id, chat_manager):
     
     # Получаем статистику
     users = storage.get_all("users.json")
-    chats = storage.get_all("chats.json")
+    chats = storage.list_active_chats()
     orders = storage.get_all("orders.json")
     inventory = storage.get_all("inventory.json")
     
@@ -771,7 +772,7 @@ def _show_system_statistics(chat_id, chat_manager):
     content += f"👥 <b>Пользователи:</b> {len(users)}\n"
     content += f"💬 <b>Чаты:</b> {len(chats)}\n"
     content += f"📦 <b>Заказы:</b> {len(orders)}\n"
-    content += f"📋 <b>Товары в инвентаре:</b> {len(inventory)}\n\n"
+    content += f"📋 <b>Размеров в инвентаре:</b> {len(inventory.get('sizes', {}))}\n\n"
     
     # Статистика по ролям
     role_counts = {}
@@ -1012,7 +1013,7 @@ def _handle_chat_deactivate(chat_id, user_id, target_chat_id, chat_manager):
     """Обрабатывает деактивацию чата"""
     from ..keyboards import get_back_keyboard
     
-    chat_data = storage.get("chats.json", str(target_chat_id))
+    chat_data = storage.get_chat(target_chat_id)
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
         keyboard = get_back_keyboard("admin_settings")
@@ -1022,7 +1023,7 @@ def _handle_chat_deactivate(chat_id, user_id, target_chat_id, chat_manager):
         chat_data['deactivated_at'] = str(int(time.time()))
         chat_data['deactivated_by'] = user_id
         
-        success = storage.set("chats.json", str(target_chat_id), chat_data)
+        success = storage.update_chat(target_chat_id, chat_data)
         
         if success:
             content = "🚫 <b>Чат деактивирован!</b>\n\n"
@@ -1043,7 +1044,7 @@ def _handle_chat_activate(chat_id, user_id, target_chat_id, chat_manager):
     """Обрабатывает активацию чата"""
     from ..keyboards import get_back_keyboard
     
-    chat_data = storage.get("chats.json", str(target_chat_id))
+    chat_data = storage.get_chat(target_chat_id)
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
         keyboard = get_back_keyboard("admin_manage_chats")
@@ -1057,7 +1058,7 @@ def _handle_chat_activate(chat_id, user_id, target_chat_id, chat_manager):
         chat_data.pop('deactivated_at', None)
         chat_data.pop('deactivated_by', None)
         
-        success = storage.set("chats.json", str(target_chat_id), chat_data)
+        success = storage.update_chat(target_chat_id, chat_data)
         
         if success:
             content = "✅ <b>Чат активирован!</b>\n\n"
@@ -1078,13 +1079,13 @@ def _handle_chat_delete(chat_id, user_id, target_chat_id, chat_manager):
     """Обрабатывает удаление чата"""
     from ..keyboards import get_back_keyboard
     
-    chat_data = storage.get("chats.json", str(target_chat_id))
+    chat_data = storage.get_chat(target_chat_id)
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
         keyboard = get_back_keyboard("admin_manage_chats")
     else:
         # Удаляем чат
-        success = storage.delete("chats.json", str(target_chat_id))
+        success = storage.delete_chat(target_chat_id)
         
         if success:
             content = "🗑️ <b>Чат удален!</b>\n\n"
@@ -1105,7 +1106,7 @@ def _show_change_prefix_form(chat_id, user_id, target_chat_id, chat_manager):
     """Показывает форму изменения индекса чата"""
     from ..keyboards import get_back_keyboard
     
-    chat_data = storage.get("chats.json", str(target_chat_id))
+    chat_data = storage.get_chat(target_chat_id)
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
         keyboard = get_back_keyboard("admin_settings")
@@ -1141,18 +1142,18 @@ def _handle_prefix_change(chat_id, user_id, target_chat_id, new_prefix, chat_man
     """Обрабатывает изменение индекса чата"""
     from ..keyboards import get_back_keyboard
     
-    chat_data = storage.get("chats.json", str(target_chat_id))
+    chat_data = storage.get_chat(target_chat_id)
     if not chat_data:
         content = "❌ <b>Чат не найден!</b>"
         keyboard = get_back_keyboard("admin_manage_chats")
     else:
         # Проверяем, не занят ли уже этот индекс другим чатом
-        all_chats = storage.get_all("chats.json")
+        all_chats = storage.list_active_chats()
         prefix_conflict = False
         conflicting_chat = None
         
-        for chat_id_key, chat_info in all_chats.items():
-            if chat_id_key != str(target_chat_id) and chat_info.get('prefix') == new_prefix:
+        for chat_info in all_chats:
+            if str(chat_info.get('chat_id')) != str(target_chat_id) and chat_info.get('prefix') == new_prefix:
                 prefix_conflict = True
                 conflicting_chat = chat_info
                 break
@@ -1161,7 +1162,7 @@ def _handle_prefix_change(chat_id, user_id, target_chat_id, new_prefix, chat_man
             content = "❌ <b>Индекс уже занят!</b>\n\n"
             content += f"Индекс <b>{new_prefix}</b> уже используется чатом:\n"
             content += f"📝 <b>Название:</b> {conflicting_chat.get('title', 'Без названия')}\n"
-            content += f"🆔 <b>ID:</b> {chat_id_key}\n\n"
+            content += f"🆔 <b>ID:</b> {conflicting_chat.get('chat_id')}\n\n"
             content += "Выберите другой индекс."
             
             keyboard = InlineKeyboardMarkup(row_width=1)
@@ -1173,7 +1174,7 @@ def _handle_prefix_change(chat_id, user_id, target_chat_id, new_prefix, chat_man
             chat_data['prefix_changed_at'] = str(int(time.time()))
             chat_data['prefix_changed_by'] = user_id
             
-            success = storage.set("chats.json", str(target_chat_id), chat_data)
+            success = storage.update_chat(target_chat_id, chat_data)
             
             if success:
                 content = "✅ <b>Индекс чата изменен!</b>\n\n"

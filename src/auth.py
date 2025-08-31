@@ -25,14 +25,16 @@ class RoleManager:
     def _init_main_admin(self):
         """Инициализация главного админа"""
         main_admin_id = str(settings.MAIN_ADMIN_ID)
-        if not storage.exists("users.json", main_admin_id):
+        if not storage.get("users.json", main_admin_id):
             admin_data = {
                 "username": "main_admin",
                 "first_name": "Главный Администратор",
+                "last_name": "",
                 "role": "admin",
                 "added_by": "system",
                 "added_at": datetime.now().isoformat(),
-                "is_active": True
+                "is_active": True,
+                "total_orders": 0
             }
             storage.set("users.json", main_admin_id, admin_data)
             logger.info(f"Создан главный админ: {main_admin_id}")
@@ -82,12 +84,14 @@ class RoleManager:
         user_data = {
             "username": username,
             "first_name": first_name,
+            "last_name": "",
             "role": role,
             "added_by": str(added_by),
             "added_at": datetime.now().isoformat(),
             "is_active": True,
             "blocked": False,
-            "assigned_chats": []  # Для координаторов - список чатов
+            "assigned_chats": [],  # Для координаторов - список чатов
+            "total_orders": 0
         }
         
         storage.set("users.json", str(user_id), user_data)
@@ -214,12 +218,12 @@ class RoleManager:
             storage.set("users.json", str(coordinator_id), coordinator_data)
         
         # Обновляем данные чата
-        chat_data = storage.get("chats.json", chat_id)
+        chat_data = storage.get_chat(chat_id)
         if chat_data:
             chat_data["coordinator_id"] = str(coordinator_id)
             chat_data["assigned_by"] = str(assigned_by)
             chat_data["assigned_at"] = datetime.now().isoformat()
-            storage.set("chats.json", chat_id, chat_data)
+            storage.update_chat(chat_id, chat_data)
         
         from .audit_logger import log_chat_coordinator_assigned
         log_chat_coordinator_assigned(assigned_by, chat_id, coordinator_id)

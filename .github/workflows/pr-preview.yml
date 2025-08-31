@@ -53,7 +53,6 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
       PAYMENT_TOKEN: ${{ secrets.PAYMENT_TOKEN }}
-      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -64,15 +63,6 @@ jobs:
           "IMAGE=$u/yaedumerchbot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "PR_NUM=${{ github.event.pull_request.number }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "IMAGE=$u/yaedumerchbot; PR_NUM=$env:PR_NUM"
-
-      - name: Compute preview port (unique per PR)
-        shell: powershell
-        run: |
-          $pr = [int]'${{ github.event.pull_request.number }}'
-          # Диапазон 19000-19999, чтобы не пересекаться с продом на 8443
-          $port = 19000 + ($pr % 1000)
-          "WEBHOOK_PORT=$port" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Preview will use host port $port"
 
       - name: Runner & Docker info
         shell: powershell
@@ -93,7 +83,6 @@ jobs:
         run: |
           docker pull "$($env:IMAGE):pr-$($env:PR_NUM)-latest"
 
-      # Этот шаг сработает только если файла нет в репозитории
       - name: Ensure compose.preview.yml exists
         shell: powershell
         run: |
@@ -111,13 +100,9 @@ jobs:
               '      - PAYMENT_TOKEN=${PAYMENT_TOKEN}',
               '      - LOG_LEVEL=DEBUG',
               '      - DEBUG=True',
-              '      - WEBHOOK_URL=${WEBHOOK_URL}',
-              '      - WEBHOOK_PORT=${WEBHOOK_PORT}',
               '    volumes:',
               '      - bot_data_pr_${PR_NUM}:/app/data',
               '      - ./logs:/app/logs',
-              '    ports:',
-              '      - "${WEBHOOK_PORT:-0}:8443"',
               '',
               'volumes:',
               '  bot_data_pr_${PR_NUM}:',
@@ -134,8 +119,6 @@ jobs:
           ADMIN_IDS: ${{ env.ADMIN_IDS }}
           PAYMENT_TOKEN: ${{ env.PAYMENT_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          WEBHOOK_URL: ${{ env.WEBHOOK_URL }}
-          WEBHOOK_PORT: ${{ env.WEBHOOK_PORT }}
         run: |
           if ($env:BOT_TOKEN) { echo "::add-mask::$($env:BOT_TOKEN)" }
           if ($env:PAYMENT_TOKEN) { echo "::add-mask::$($env:PAYMENT_TOKEN)" }

@@ -3,6 +3,7 @@ from telebot import TeleBot
 from telebot.storage.memory_storage import StateMemoryStorage
 from telebot.types import Message, CallbackQuery
 from .handlers.admin import register_admin_handlers
+from .handlers.merch import register_merch_handlers
 from .auth import role_manager
 from .chat_manager import ChatManager
 
@@ -29,6 +30,9 @@ class YaEduMerchBot:
         # Админские команды
         register_admin_handlers(self.bot, self.chat_manager)
         
+        # Хэндлеры мерча (заказы)
+        register_merch_handlers(self.bot, self.chat_manager)
+        
         # Обработчики callback-запросов (один общий обработчик для всех)
         self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback)
         
@@ -41,19 +45,19 @@ class YaEduMerchBot:
             # Проверяем наличие основных данных
             from .storage import storage
             users = storage.get_all("users.json")
-            chats = storage.get_all("chats.json")
+            chats = storage.list_active_chats()
             inventory = storage.get_all("inventory.json")
             settings = storage.get_all("settings.json")
             
             # Проект считается готовым, если есть:
             # 1. Хотя бы один админ
             # 2. Хотя бы один чат
-            # 3. Хотя бы один товар в инвентаре
+            # 3. Хотя бы один размер в инвентаре
             # 4. Базовые настройки
             
             has_admin = any(user.get('role') == 'admin' for user in users.values())
             has_chats = len(chats) > 0
-            has_inventory = len(inventory) > 0
+            has_inventory = len(inventory.get('sizes', {})) > 0
             has_settings = len(settings) > 0
             
             return has_admin and has_chats and has_inventory and has_settings
@@ -119,7 +123,7 @@ class YaEduMerchBot:
                        "• Управлять промо-пользователями\n"
                        "• Настраивать инвентарь\n"
                        "• Создавать заказы\n\n"
-                       "Используйте кнопки ниже для навигации")
+                       "Нажмите кнопку «Управление заказами» чтобы создать заказ!")
             
             elif role == "promo":
                 return ("📢 <b>Добро пожаловать, Промо-пользователь!</b>\n\n"
@@ -127,7 +131,7 @@ class YaEduMerchBot:
                        "Вы можете:\n"
                        "• Помогать с оформлением заказов\n"
                        "• Работать с клиентами\n\n"
-                       "Используйте кнопки ниже для навигации")
+                       "Нажмите кнопку «Создать заказ» чтобы начать!")
             
             else:  # user
                 return ("👤 <b>Добро пожаловать!</b>\n\n"
@@ -136,7 +140,7 @@ class YaEduMerchBot:
                        "• Просматривать каталог\n"
                        "• Оформлять заказы\n"
                        "• Выбирать размеры и цвета\n\n"
-                       "Используйте кнопки ниже для навигации")
+                       "Нажмите кнопку «Сделать заказ» чтобы начать!")
 
     def handle_start(self, message: Message):
         """Обработчик команды /start"""
@@ -380,8 +384,11 @@ class YaEduMerchBot:
             content += "Функция добавления промо будет реализована в следующих версиях.\n\n"
             content += "Пока что используйте админ-панель для управления пользователями."
         elif call.data == "coord_orders":
-            content = "📦 <b>Управление заказами</b>\n\n"
-            content += "Функция управления заказами будет реализована в следующих версиях."
+            # Перенаправляем на FSM создания заказа
+            from .handlers.merch import OrderStates, _show_order_start
+            self.bot.set_state(call.from_user.id, OrderStates.start, call.message.chat.id)
+            _show_order_start(self.bot, call.message.chat.id, call.from_user.id)
+            return
         elif call.data == "coord_inventory":
             content = "📋 <b>Управление инвентарем</b>\n\n"
             content += "Функция управления инвентарем будет реализована в следующих версиях."
@@ -404,8 +411,11 @@ class YaEduMerchBot:
         from .keyboards import get_back_keyboard
         
         if call.data == "promo_create_order":
-            content = "📦 <b>Создание заказа</b>\n\n"
-            content += "Функция создания заказов будет реализована в следующих версиях."
+            # Перенаправляем на FSM создания заказа
+            from .handlers.merch import OrderStates, _show_order_start
+            self.bot.set_state(call.from_user.id, OrderStates.start, call.message.chat.id)
+            _show_order_start(self.bot, call.message.chat.id, call.from_user.id)
+            return
         elif call.data == "promo_my_orders":
             content = "📋 <b>Мои заказы</b>\n\n"
             content += "Функция просмотра заказов будет реализована в следующих версиях."
@@ -431,8 +441,11 @@ class YaEduMerchBot:
         from .keyboards import get_back_keyboard
         
         if call.data == "user_create_order":
-            content = "📦 <b>Создание заказа</b>\n\n"
-            content += "Функция создания заказов будет реализована в следующих версиях."
+            # Перенаправляем на FSM создания заказа
+            from .handlers.merch import OrderStates, _show_order_start
+            self.bot.set_state(call.from_user.id, OrderStates.start, call.message.chat.id)
+            _show_order_start(self.bot, call.message.chat.id, call.from_user.id)
+            return
         elif call.data == "user_my_orders":
             content = "📋 <b>Мои заказы</b>\n\n"
             content += "Функция просмотра заказов будет реализована в следующих версиях."

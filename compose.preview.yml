@@ -10,14 +10,10 @@ services:
       - PAYMENT_TOKEN=${PAYMENT_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
       - DEBUG=True
-      - WEBHOOK_URL=${WEBHOOK_URL}
-      - WEBHOOK_PORT=${WEBHOOK_PORT}   # в workflow высчитываем уникальный порт
     volumes:
       - bot_data_pr_${PR_NUM}:/app/data
       - ./logs:/app/logs
-    ports:
-      # Если WEBHOOK_PORT не задан, Docker выделит эпемерный порт хоста
-      - "${WEBHOOK_PORT:-0}:8443"
+    # без healthcheck и без портов — long polling
 
 volumes:
   bot_data_pr_${PR_NUM}:

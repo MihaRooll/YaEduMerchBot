@@ -1,5 +1,5 @@
-{
-  "-1002076884561": {
+[
+  {
     "chat_id": "-1002076884561",
     "title": "A | ЗАКАЗЫ",
     "type": "supergroup",
@@ -10,9 +10,11 @@
     "username": "",
     "prefix": "A",
     "prefix_changed_at": "1756644197",
-    "prefix_changed_by": 445075408
+    "prefix_changed_by": 445075408,
+    "active": true,
+    "is_common": true
   },
-  "-1002216825710": {
+  {
     "chat_id": "-1002216825710",
     "title": "B | ЗАКАЗЫ",
     "type": "supergroup",
@@ -23,9 +25,11 @@
     "username": "",
     "prefix": "B",
     "prefix_changed_at": "1756644191",
-    "prefix_changed_by": 445075408
+    "prefix_changed_by": 445075408,
+    "active": true,
+    "is_common": true
   },
-  "-1002178030528": {
+  {
     "chat_id": "-1002178030528",
     "title": "С | ЗАКАЗЫ",
     "type": "supergroup",
@@ -36,9 +40,11 @@
     "username": "",
     "prefix": "C",
     "prefix_changed_at": "1756644145",
-    "prefix_changed_by": 445075408
+    "prefix_changed_by": 445075408,
+    "active": true,
+    "is_common": true
   },
-  "-1002449253789": {
+  {
     "chat_id": "-1002449253789",
     "title": "D | ЗАКАЗЫ",
     "type": "supergroup",
@@ -49,6 +55,8 @@
     "username": "",
     "prefix": "D",
     "prefix_changed_at": "1756644137",
-    "prefix_changed_by": 445075408
+    "prefix_changed_by": 445075408,
+    "active": true,
+    "is_common": true
   }
-}
+]

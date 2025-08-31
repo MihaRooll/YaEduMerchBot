@@ -116,7 +116,7 @@ def get_size_selection_keyboard(sizes: List[str]) -> InlineKeyboardMarkup:
         row = size_buttons[i:i+3]
         keyboard.add(*row)
     
-    keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="order_create"))
+    keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="order_back_to_start"))
     return keyboard
 
 
@@ -134,7 +134,7 @@ def get_color_selection_keyboard(colors: List[str], selected_size: str) -> Inlin
         row = color_buttons[i:i+3]
         keyboard.add(*row)
     
-    keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="order_select_size"))
+    keyboard.add(InlineKeyboardButton("🔙 Назад", callback_data="order_back_to_start"))
     return keyboard
 
 
@@ -154,7 +154,7 @@ def get_chat_selection_keyboard(chats: List[Dict[str, Any]], selected_chats: Lis
     
     keyboard.add(
         InlineKeyboardButton("✅ Готово", callback_data="chats_selected"),
-        InlineKeyboardButton("🔙 Назад", callback_data="order_create")
+        InlineKeyboardButton("🔙 Назад", callback_data="order_back_to_start")
     )
     return keyboard
 
@@ -167,7 +167,18 @@ def get_order_confirmation_keyboard(order_data: Dict[str, Any]) -> InlineKeyboar
         InlineKeyboardButton("✏️ Изменить размер", callback_data="order_change_size"),
         InlineKeyboardButton("🖼 Изменить фото", callback_data="order_change_photo"),
         InlineKeyboardButton("💬 Изменить чаты", callback_data="order_change_chats"),
-        InlineKeyboardButton("🔙 Назад", callback_data="order_create")
+        InlineKeyboardButton("🔙 Назад", callback_data="order_back_to_start")
+    )
+    return keyboard
+
+def get_order_review_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура предпросмотра заказа для FSM"""
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("🔁 Сменить размер", callback_data="order_change_size"),
+        InlineKeyboardButton("🖼 Сменить изображение", callback_data="order_change_photo"),
+        InlineKeyboardButton("➡️ Выбрать чаты", callback_data="order_select_chats"),
+        InlineKeyboardButton("🔙 Назад", callback_data="order_back_to_start")
     )
     return keyboard
 
