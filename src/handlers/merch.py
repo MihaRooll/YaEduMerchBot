@@ -157,6 +157,30 @@ def register_merch_handlers(bot, chat_manager):
         _show_image_upload(bot, chat_id, user_id)
         bot.answer_callback_query(call.id)
     
+    @bot.callback_query_handler(func=lambda call: call.data == "order_change_color", state=OrderStates.review)
+    def handle_change_color(call: CallbackQuery):
+        """Обработчик изменения цвета"""
+        user_id = call.from_user.id
+        chat_id = call.message.chat.id
+        
+        # Возвращаемся к выбору цвета
+        if user_id in order_data and 'size' in order_data[user_id]:
+            size = order_data[user_id]['size']
+            colors = storage.list_colors(size)
+            if colors and len(colors) > 1 and colors[0] != "_":
+                bot.set_state(user_id, OrderStates.pick_color, chat_id)
+                _show_color_selection(bot, chat_id, user_id, size, colors)
+            else:
+                # Если цветов нет, возвращаемся к размеру
+                bot.set_state(user_id, OrderStates.pick_size, chat_id)
+                _show_size_selection(bot, chat_id, user_id)
+        else:
+            # Если нет данных о размере, возвращаемся к размеру
+            bot.set_state(user_id, OrderStates.pick_size, chat_id)
+            _show_size_selection(bot, chat_id, user_id)
+        
+        bot.answer_callback_query(call.id)
+    
     @bot.callback_query_handler(func=lambda call: call.data == "order_select_chats", state=OrderStates.review)
     def handle_select_chats(call: CallbackQuery):
         """Обработчик выбора чатов"""
@@ -216,14 +240,46 @@ def register_merch_handlers(bot, chat_manager):
         # Создаем заказ
         success = _create_order(user_id)
         if success:
+            # Получаем ID заказа для квитанции
+            order_id = storage.next_order_id() - 1  # Текущий ID будет следующим
+            
+            # Сохраняем данные для квитанции
+            order_info = order_data.get(user_id, {})
+            
             # Очищаем состояние
             bot.delete_state(user_id, chat_id)
             if user_id in order_data:
                 del order_data[user_id]
             
-            bot.send_message(chat_id, "✅ Заказ успешно создан и отправлен в выбранные чаты!")
+            # Показываем квитанцию
+            receipt_text = f"✅ <b>Заказ #{order_id} подготовлен к отправке!</b>\n\n"
+            receipt_text += f"📏 Размер: {order_info.get('size', 'Неизвестно')}\n"
+            if order_info.get('color') and order_info.get('color') != '_':
+                receipt_text += f"🎨 Цвет: {order_info.get('color')}\n"
+            receipt_text += f"📷 Фото: Загружено\n"
+            receipt_text += f"👤 Автор: {role_manager.get_user_data(user_id)['first_name']}\n\n"
+            receipt_text += "📤 Заказ будет отправлен в выбранные чаты в ближайшее время."
+            
+            bot.send_message(chat_id, receipt_text, parse_mode='HTML')
         else:
-            bot.answer_callback_query(call.id, "❌ Ошибка создания заказа")
+            # Показываем ошибку с предложением сменить размер/цвет
+            error_text = "❌ <b>Не удалось создать заказ</b>\n\n"
+            error_text += "Возможные причины:\n"
+            error_text += "• Недостаточно товара в наличии\n"
+            error_text += "• Ошибка резервирования\n\n"
+            error_text += "Попробуйте:\n"
+            error_text += "• Сменить размер\n"
+            error_text += "• Сменить цвет\n"
+            error_text += "• Обратиться к администратору"
+            
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard.add(
+                InlineKeyboardButton("🔁 Сменить размер", callback_data="order_change_size"),
+                InlineKeyboardButton("🎨 Сменить цвет", callback_data="order_change_color"),
+                InlineKeyboardButton("🔙 Назад", callback_data="order_back_to_start")
+            )
+            
+            bot.send_message(chat_id, error_text, reply_markup=keyboard, parse_mode='HTML')
     
     @bot.callback_query_handler(func=lambda call: call.data == "order_back_to_start", state="*")
     def handle_back_to_start(call: CallbackQuery):
@@ -238,6 +294,30 @@ def register_merch_handlers(bot, chat_manager):
         
         # Показываем главное меню
         chat_manager.show_main_menu(chat_id, user_id, role_manager.get_user_role(user_id))
+        bot.answer_callback_query(call.id)
+    
+    @bot.callback_query_handler(func=lambda call: call.data == "order_change_color", state="*")
+    def handle_change_color_anywhere(call: CallbackQuery):
+        """Обработчик изменения цвета из любого состояния"""
+        user_id = call.from_user.id
+        chat_id = call.message.chat.id
+        
+        # Возвращаемся к выбору цвета
+        if user_id in order_data and 'size' in order_data[user_id]:
+            size = order_data[user_id]['size']
+            colors = storage.list_colors(size)
+            if colors and len(colors) > 1 and colors[0] != "_":
+                bot.set_state(user_id, OrderStates.pick_color, chat_id)
+                _show_color_selection(bot, chat_id, user_id, size, colors)
+            else:
+                # Если цветов нет, возвращаемся к размеру
+                bot.set_state(user_id, OrderStates.pick_size, chat_id)
+                _show_size_selection(bot, chat_id, user_id)
+        else:
+            # Если нет данных о размере, возвращаемся к размеру
+            bot.set_state(user_id, OrderStates.pick_size, chat_id)
+            _show_size_selection(bot, chat_id, user_id)
+        
         bot.answer_callback_query(call.id)
 
 # Вспомогательные функции
@@ -423,12 +503,19 @@ def _create_order(user_id: int) -> bool:
             return False
         
         data = order_data[user_id]
+        size = data.get('size')
+        color = data.get('color', '_')
+        
+        # Проверяем и резервируем остатки
+        if not storage.reserve(size, color, 1):
+            logger.warning(f"Не удалось зарезервировать товар: размер {size}, цвет {color}")
+            return False
         
         # Создаем заказ в storage
         order_payload = {
             "user_tg_id": user_id,
-            "size": data.get('size'),
-            "color": data.get('color', '_'),
+            "size": size,
+            "color": color,
             "photo_file_id": data.get('photo_file_id'),
             "status": "created",
             "created_at": datetime.now().isoformat()
@@ -453,4 +540,10 @@ def _create_order(user_id: int) -> bool:
         
     except Exception as e:
         logger.error(f"Ошибка создания заказа: {e}")
+        # В случае ошибки освобождаем резерв
+        try:
+            if 'size' in locals() and 'color' in locals():
+                storage.release(size, color, 1)
+        except:
+            pass
         return False

@@ -42,6 +42,7 @@ def get_admin_panel_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton("👥 Управление пользователями", callback_data="admin_manage_users"),
         InlineKeyboardButton("💬 Управление чатами", callback_data="admin_manage_chats"),
         InlineKeyboardButton("📦 Управление инвентарем", callback_data="admin_manage_inventory"),
+        InlineKeyboardButton("🛍 Настройки мерча", callback_data="admin_merch_settings"),
         InlineKeyboardButton("📊 Системная статистика", callback_data="admin_system_stats"),
         InlineKeyboardButton("🔙 Назад", callback_data="back_to_main")
     )
@@ -218,6 +219,20 @@ def get_admin_settings_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton("💬 Управление чатами", callback_data="admin_manage_chats"),
         InlineKeyboardButton("🔧 Системные настройки", callback_data="admin_system_settings"),
         InlineKeyboardButton("📊 Логи и мониторинг", callback_data="admin_logs"),
+        InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")
+    )
+    return keyboard
+
+def get_merch_settings_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура настроек мерча"""
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("➕ Добавить товар", callback_data="merch_add_product"),
+        InlineKeyboardButton("📋 Список товаров", callback_data="merch_view_products"),
+        InlineKeyboardButton("📏 Управление размерами", callback_data="merch_manage_sizes"),
+        InlineKeyboardButton("🎨 Управление цветами", callback_data="merch_manage_colors"),
+        InlineKeyboardButton("📊 Статистика заказов", callback_data="merch_order_stats"),
+        InlineKeyboardButton("⚙️ Общие настройки", callback_data="merch_general_settings"),
         InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")
     )
     return keyboard

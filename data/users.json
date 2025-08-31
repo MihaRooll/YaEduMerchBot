@@ -20,5 +20,15 @@
     "blocked": false,
     "assigned_chats": [],
     "total_orders": 0
+  },
+  "None": {
+    "username": "main_admin",
+    "first_name": "Главный Администратор",
+    "last_name": "",
+    "role": "admin",
+    "added_by": "system",
+    "added_at": "2025-08-31T17:41:37.898111",
+    "is_active": true,
+    "total_orders": 0
   }
 }

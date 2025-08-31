@@ -67,11 +67,23 @@ class JSONStorage:
             "users.json": {},
             "chats.json": [],
             "inventory.json": {
+                "products": {
+                    "longsleeve_white": {
+                        "name": "Лонгслив белый",
+                        "type": "longsleeve",
+                        "base_color": "white",
+                        "sizes": {
+                            "S": {"qty_total": 10, "qty_reserved": 0},
+                            "M": {"qty_total": 15, "qty_reserved": 0},
+                            "L": {"qty_total": 12, "qty_reserved": 0}
+                        },
+                        "active": True
+                    }
+                },
                 "sizes": {
-                    "S": {"colors": {"_": {"qty_total": 10, "qty_reserved": 0}}},
-                    "M": {"colors": {"_": {"qty_total": 10, "qty_reserved": 0}}},
-                    "L": {"colors": {"_": {"qty_total": 10, "qty_reserved": 0}}},
-                    "XL": {"colors": {"_": {"qty_total": 10, "qty_reserved": 0}}}
+                    "S": {"colors": {"white": {"qty_total": 10, "qty_reserved": 0}}},
+                    "M": {"colors": {"white": {"qty_total": 15, "qty_reserved": 0}}},
+                    "L": {"colors": {"white": {"qty_total": 12, "qty_reserved": 0}}}
                 }
             },
             "orders.json": []
@@ -302,6 +314,154 @@ class JSONStorage:
             users[key] = value
             return self._write_file(filename, users)
         return False
+    
+    # Функции управления товарами
+    def list_products(self) -> Dict[str, Any]:
+        """Получить список всех товаров"""
+        inventory = self._read_file("inventory.json")
+        return inventory.get("products", {})
+    
+    def get_product(self, product_id: str) -> Optional[Dict[str, Any]]:
+        """Получить информацию о товаре"""
+        products = self.list_products()
+        return products.get(product_id)
+    
+    def add_product(self, product_id: str, name: str, product_type: str, base_color: str, sizes: Dict[str, int]) -> bool:
+        """Добавить новый товар"""
+        try:
+            inventory = self._read_file("inventory.json")
+            products = inventory.get("products", {})
+            
+            # Создаем товар
+            products[product_id] = {
+                "name": name,
+                "type": product_type,
+                "base_color": base_color,
+                "sizes": {},
+                "active": True
+            }
+            
+            # Добавляем размеры и цвета
+            for size, qty in sizes.items():
+                products[product_id]["sizes"][size] = {"qty_total": qty, "qty_reserved": 0}
+                
+                # Обновляем общую структуру размеров
+                if size not in inventory["sizes"]:
+                    inventory["sizes"][size] = {"colors": {}}
+                if base_color not in inventory["sizes"][size]["colors"]:
+                    inventory["sizes"][size]["colors"][base_color] = {"qty_total": 0, "qty_reserved": 0}
+                
+                inventory["sizes"][size]["colors"][base_color]["qty_total"] += qty
+            
+            inventory["products"] = products
+            return self._write_file("inventory.json", inventory)
+        except Exception as e:
+            logger.error(f"Ошибка добавления товара: {e}")
+            return False
+    
+    def update_product_quantity(self, product_id: str, size: str, qty: int) -> bool:
+        """Обновить количество товара"""
+        try:
+            inventory = self._read_file("inventory.json")
+            products = inventory.get("products", {})
+            
+            if product_id not in products:
+                return False
+            
+            product = products[product_id]
+            if size not in product["sizes"]:
+                return False
+            
+            # Обновляем количество в товаре
+            old_qty = product["sizes"][size]["qty_total"]
+            product["sizes"][size]["qty_total"] = qty
+            
+            # Обновляем общую структуру размеров
+            base_color = product["base_color"]
+            if size in inventory["sizes"] and base_color in inventory["sizes"][size]["colors"]:
+                inventory["sizes"][size]["colors"][base_color]["qty_total"] += (qty - old_qty)
+            
+            return self._write_file("inventory.json", inventory)
+        except Exception as e:
+            logger.error(f"Ошибка обновления количества товара: {e}")
+            return False
+    
+    def toggle_product_status(self, product_id: str) -> bool:
+        """Переключить статус товара (активен/неактивен)"""
+        try:
+            inventory = self._read_file("inventory.json")
+            products = inventory.get("products", {})
+            
+            if product_id not in products:
+                return False
+            
+            products[product_id]["active"] = not products[product_id].get("active", True)
+            inventory["products"] = products
+            
+            return self._write_file("inventory.json", inventory)
+        except Exception as e:
+            logger.error(f"Ошибка переключения статуса товара: {e}")
+            return False
+    
+    def delete_product(self, product_id: str) -> bool:
+        """Удалить товар"""
+        try:
+            inventory = self._read_file("inventory.json")
+            products = inventory.get("products", {})
+            
+            if product_id not in products:
+                return False
+            
+            # Удаляем товар
+            del products[product_id]
+            inventory["products"] = products
+            
+            return self._write_file("inventory.json", inventory)
+        except Exception as e:
+            logger.error(f"Ошибка удаления товара: {e}")
+            return False
+    
+    def get_inventory_summary(self) -> Dict[str, Any]:
+        """Получить сводку по инвентарю"""
+        try:
+            inventory = self._read_file("inventory.json")
+            products = inventory.get("products", {})
+            
+            summary = {
+                "total_products": len(products),
+                "active_products": sum(1 for p in products.values() if p.get("active", True)),
+                "total_items": 0,
+                "reserved_items": 0,
+                "products": []
+            }
+            
+            for product_id, product in products.items():
+                product_summary = {
+                    "id": product_id,
+                    "name": product["name"],
+                    "type": product["type"],
+                    "color": product["base_color"],
+                    "active": product.get("active", True),
+                    "sizes": {}
+                }
+                
+                for size, size_data in product["sizes"].items():
+                    qty_total = size_data["qty_total"]
+                    qty_reserved = size_data["qty_reserved"]
+                    product_summary["sizes"][size] = {
+                        "total": qty_total,
+                        "reserved": qty_reserved,
+                        "available": qty_total - qty_reserved
+                    }
+                    summary["total_items"] += qty_total
+                    summary["reserved_items"] += qty_reserved
+                
+                summary["products"].append(product_summary)
+            
+            return summary
+        except Exception as e:
+            logger.error(f"Ошибка получения сводки инвентаря: {e}")
+            return {}
 
 
 # Глобальный экземпляр хранилища

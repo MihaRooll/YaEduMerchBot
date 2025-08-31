@@ -21,23 +21,37 @@ class YaEduMerchBot:
     
     def _register_handlers(self):
         """Регистрация всех обработчиков"""
-        # Базовые команды (регистрируем ПЕРВЫМИ)
-        self.bot.message_handler(commands=['start'])(self.handle_start)
-        self.bot.message_handler(commands=['help'])(self.handle_help)
-        self.bot.message_handler(commands=['status'])(self.handle_status)
-        self.bot.message_handler(commands=['menu'])(self.handle_menu)
-        
-        # Админские команды
-        register_admin_handlers(self.bot, self.chat_manager)
-        
-        # Хэндлеры мерча (заказы)
-        register_merch_handlers(self.bot, self.chat_manager)
-        
-        # Обработчики callback-запросов (один общий обработчик для всех)
-        self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback)
-        
-        # Обработчик неизвестных команд (ПОСЛЕДНИМ)
-        self.bot.message_handler(func=lambda message: True)(self.handle_unknown)
+        try:
+            # Базовые команды (регистрируем ПЕРВЫМИ)
+            self.bot.message_handler(commands=['start'])(self.handle_start)
+            self.bot.message_handler(commands=['help'])(self.handle_help)
+            self.bot.message_handler(commands=['status'])(self.handle_status)
+            self.bot.message_handler(commands=['menu'])(self.handle_menu)
+            
+            # Админские команды
+            register_admin_handlers(self.bot, self.chat_manager)
+            
+            # Хэндлеры мерча (заказы)
+            register_merch_handlers(self.bot, self.chat_manager)
+            
+            # Обработчики callback-запросов (один общий обработчик для всех)
+            self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback)
+            
+            # Хэндлеры настроек мерча (РЕГИСТРИРУЕМ ПОСЛЕ callback обработчиков)
+            try:
+                from .handlers.merch_settings import register_merch_settings_handlers
+                register_merch_settings_handlers(self.bot, self.chat_manager)
+                logger.info("Хэндлеры настроек мерча зарегистрированы успешно")
+            except Exception as e:
+                logger.error(f"Ошибка регистрации хэндлеров настроек мерча: {e}")
+            
+            # Регистрируем обработчик неизвестных команд ПОСЛЕ всех FSM обработчиков
+            self.bot.message_handler(func=lambda message: True)(self.handle_unknown)
+            
+            logger.info("Все обработчики зарегистрированы успешно")
+        except Exception as e:
+            logger.error(f"Ошибка регистрации обработчиков: {e}")
+            raise
     
     def _check_project_readiness(self) -> bool:
         """Проверяет готовность проекта к работе"""
@@ -171,13 +185,16 @@ class YaEduMerchBot:
         else:
             keyboard = get_back_keyboard("back_to_main")
         
-        # Отправляем новое сообщение
-        self.bot.send_message(
+        # Отправляем новое сообщение и сохраняем его в ChatManager
+        message = self.bot.send_message(
             chat_id=chat_id,
             text=start_text,
             reply_markup=keyboard,
             parse_mode='HTML'
         )
+        
+        # Сохраняем сообщение в ChatManager для последующего редактирования
+        self.chat_manager._save_initial_message(chat_id, message.message_id, start_text, keyboard)
     
     def handle_help(self, message: Message):
         """Обработчик команды /help"""
@@ -296,10 +313,18 @@ class YaEduMerchBot:
                 self.chat_manager.show_admin_panel(chat_id, user_id)
             elif call.data == "admin_users":
                 logger.info("Обрабатываем admin_users")
-                self.chat_manager.show_user_management(chat_id, user_id)
+                result = self.chat_manager.show_user_management(chat_id, user_id)
+                logger.info(f"Результат show_user_management: {result}")
+                if not result:
+                    logger.error("Не удалось показать управление пользователями")
+                    self.bot.answer_callback_query(call.id, "❌ Ошибка показа управления пользователями")
             elif call.data == "admin_stats":
                 logger.info("Обрабатываем admin_stats")
-                self.chat_manager.show_system_stats(chat_id, user_id)
+                result = self.chat_manager.show_system_stats(chat_id, user_id)
+                logger.info(f"Результат show_system_stats: {result}")
+                if not result:
+                    logger.error("Не удалось показать системную статистику")
+                    self.bot.answer_callback_query(call.id, "❌ Ошибка показа системной статистики")
             elif call.data == "admin_settings":
                 logger.info("Обрабатываем admin_settings")
                 self._handle_admin_settings(call)
@@ -312,6 +337,9 @@ class YaEduMerchBot:
             elif call.data == "admin_logs":
                 logger.info("Обрабатываем admin_logs")
                 self._handle_admin_logs(call)
+            elif call.data == "admin_merch_settings":
+                logger.info("Обрабатываем admin_merch_settings")
+                self._handle_admin_merch_settings(call)
             elif call.data.startswith("coord_"):
                 self._handle_coordinator_callback(call)
             elif call.data.startswith("promo_"):
@@ -340,6 +368,8 @@ class YaEduMerchBot:
                 self._handle_change_prefix(call, target_chat_id)
             elif call.data.startswith("order_"):
                 self._handle_order_callback(call)
+            elif call.data.startswith("merch_"):
+                self._handle_merch_callback(call)
             else:
                 self.bot.answer_callback_query(call.id, "Неизвестная команда")
                 
@@ -353,7 +383,7 @@ class YaEduMerchBot:
         chat_id = call.message.chat.id
         role = role_manager.get_user_role(user_id)
         
-        # Показываем главное меню
+        # Показываем главное меню (редактируем существующее сообщение)
         self.chat_manager.show_main_menu(chat_id, user_id, role)
     
     def _handle_admin_callback(self, call: CallbackQuery):
@@ -470,6 +500,25 @@ class YaEduMerchBot:
         """Обработчик callback заказов"""
         self.bot.answer_callback_query(call.id, "Функция заказа")
     
+    def _handle_merch_callback(self, call: CallbackQuery):
+        """Обработчик callback мерча"""
+        # Теперь все callback'и мерча обрабатываются в merch_settings.py
+        # Этот метод оставлен для совместимости
+        from .keyboards import get_back_keyboard
+        
+        content = "🛍 <b>Настройки мерча</b>\n\n"
+        content += "Используйте меню настроек мерча для управления товарами."
+        
+        keyboard = get_back_keyboard("admin_merch_settings")
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
+    
     def _handle_admin_settings(self, call: CallbackQuery):
         """Обработчик настроек администратора"""
         from .keyboards import get_admin_settings_keyboard
@@ -530,6 +579,27 @@ class YaEduMerchBot:
             reply_markup=keyboard,
             parse_mode='HTML'
         )
+    
+    def _handle_admin_merch_settings(self, call: CallbackQuery):
+        """Обработчик настроек мерча"""
+        from .keyboards import get_merch_settings_keyboard
+        
+        content = "🛍 <b>Настройки мерча</b>\n\n"
+        content += "Управление настройками мерча и заказов:\n\n"
+        content += "📏 <b>Размеры:</b> Добавление/удаление размеров\n"
+        content += "🎨 <b>Цвета:</b> Управление цветовой палитрой\n"
+        content += "📊 <b>Статистика:</b> Анализ заказов\n"
+        content += "⚙️ <b>Общие:</b> Основные параметры системы"
+        
+        keyboard = get_merch_settings_keyboard()
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
 
     def _handle_chat_deactivate(self, call: CallbackQuery, target_chat_id: str):
         """Обработчик деактивации чата"""
@@ -558,30 +628,51 @@ class YaEduMerchBot:
 
     def handle_unknown(self, message: Message):
         """Обработчик неизвестных команд"""
-        from .handlers.admin import _is_waiting_for_id, _is_waiting_for_prefix
-        
-        user_id = message.from_user.id
-        chat_id = message.chat.id
-        
-        # Не показываем "неизвестная команда" если пользователь в интерактивном режиме
-        if _is_waiting_for_id(user_id) or _is_waiting_for_prefix(user_id):
-            return
-        
-        unknown_text = "❓ Неизвестная команда\n\n"
-        unknown_text += "Используйте /help для получения справки\n"
-        unknown_text += "Или /menu для возврата в главное меню"
-        
-        # Кнопка возврата к главному меню
-        from .keyboards import get_back_keyboard
-        keyboard = get_back_keyboard("back_to_main")
-        
-        # Отправляем новое сообщение вместо редактирования
-        self.bot.send_message(
-            chat_id=chat_id,
-            text=unknown_text,
-            reply_markup=keyboard,
-            parse_mode='HTML'
-        )
+        try:
+            from .handlers.admin import _is_waiting_for_id, _is_waiting_for_prefix
+            
+            user_id = message.from_user.id
+            chat_id = message.chat.id
+            
+            # Проверяем, находится ли пользователь в интерактивном режиме
+            if _is_waiting_for_id(user_id) or _is_waiting_for_prefix(user_id):
+                return
+            
+            # Проверяем FSM состояния (с защитой от ошибок)
+            try:
+                from .handlers.merch_settings import MerchSettingsStates
+                current_state = self.bot.get_state(user_id, chat_id)
+                
+                # Не показываем "неизвестная команда" если пользователь в FSM состоянии
+                # Получаем все состояния FSM
+                fsm_states = [
+                    MerchSettingsStates.waiting_for_product_name,
+                    MerchSettingsStates.waiting_for_product_type,
+                    MerchSettingsStates.waiting_for_product_color,
+                    MerchSettingsStates.waiting_for_quantity,
+                    MerchSettingsStates.waiting_for_size_name
+                ]
+                
+                if current_state in fsm_states:
+                    logger.info(f"Пользователь {user_id} в FSM состоянии {current_state}, пропускаем 'неизвестная команда'")
+                    return
+            except Exception as e:
+                logger.warning(f"Ошибка проверки FSM состояния: {e}")
+            
+            unknown_text = "❓ Неизвестная команда\n\n"
+            unknown_text += "Используйте /help для получения справки\n"
+            unknown_text += "Или /menu для возврата в главное меню"
+            
+            # Отправляем новое сообщение
+            self.bot.send_message(
+                chat_id=chat_id,
+                text=unknown_text,
+                parse_mode='HTML'
+            )
+        except Exception as e:
+            logger.error(f"Ошибка в handle_unknown: {e}")
+            # В случае ошибки просто игнорируем сообщение
+            pass
     
     def run(self):
         """Запуск бота"""

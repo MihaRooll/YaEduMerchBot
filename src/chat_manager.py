@@ -73,11 +73,13 @@ class ChatManager:
         """
         try:
             chat_key = str(chat_id)
+            logger.info(f"Обновляем сообщение для чата {chat_id}, контент: {content[:50]}...")
             
             # Проверяем, есть ли активное сообщение для этого чата
             if chat_key in self._chat_messages:
                 message_info = self._chat_messages[chat_key]
                 message_id = message_info.get('message_id')
+                logger.info(f"Найдено существующее сообщение для чата {chat_id}, ID: {message_id}")
                 
                 # Проверяем, изменился ли контент или клавиатура
                 current_content = message_info.get('content', '')
@@ -92,6 +94,7 @@ class ChatManager:
                 if message_id:
                     # Пытаемся обновить существующее сообщение
                     try:
+                        logger.info(f"Пытаемся обновить существующее сообщение {message_id} в чате {chat_id}")
                         self.bot.edit_message_text(
                             chat_id=chat_id,
                             message_id=message_id,
@@ -114,8 +117,12 @@ class ChatManager:
                         logger.warning(f"Не удалось обновить сообщение {message_id}: {e}")
                         # Если не удалось обновить, удаляем старое из кеша
                         del self._chat_messages[chat_key]
+                        # Продолжаем и отправляем новое сообщение
+            else:
+                logger.info(f"Нет существующего сообщения для чата {chat_id}, будет отправлено новое")
             
-            # Отправляем новое сообщение
+            # Отправляем новое сообщение только если не удалось обновить существующее
+            logger.info(f"Отправляем новое сообщение в чат {chat_id}")
             return self._send_new_message(chat_id, content, keyboard)
             
         except Exception as e:
@@ -124,26 +131,47 @@ class ChatManager:
     
     def show_main_menu(self, chat_id: int, user_id: int, role: str) -> bool:
         """Показывает главное меню в чате"""
-        content = self._get_user_content(user_id, role)
-        keyboard = get_main_menu_keyboard(role)
-        
-        return self.update_chat_message(chat_id, content, keyboard)
+        try:
+            logger.info(f"Показываем главное меню для чата {chat_id}, пользователя {user_id}, роли {role}")
+            content = self._get_user_content(user_id, role)
+            keyboard = get_main_menu_keyboard(role)
+            
+            result = self.update_chat_message(chat_id, content, keyboard)
+            logger.info(f"Результат показа главного меню: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Ошибка показа главного меню: {e}")
+            return False
     
     def show_admin_panel(self, chat_id: int, user_id: int) -> bool:
         """Показывает админ-панель в чате"""
-        content = self._get_admin_content(user_id)
-        keyboard = get_admin_panel_keyboard()
-        
-        return self.update_chat_message(chat_id, content, keyboard)
+        try:
+            logger.info(f"Показываем админ-панель для чата {chat_id}, пользователя {user_id}")
+            content = self._get_admin_content(user_id)
+            keyboard = get_admin_panel_keyboard()
+            
+            result = self.update_chat_message(chat_id, content, keyboard)
+            logger.info(f"Результат показа админ-панели: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Ошибка показа админ-панели: {e}")
+            return False
     
     def show_user_management(self, chat_id: int, user_id: int) -> bool:
         """Показывает управление пользователями в чате"""
-        from .keyboards import get_user_management_keyboard, get_back_keyboard
-        
-        content = "👥 <b>Управление пользователями</b>\n\nВыберите действие:"
-        keyboard = get_user_management_keyboard()
-        
-        return self.update_chat_message(chat_id, content, keyboard)
+        try:
+            from .keyboards import get_user_management_keyboard, get_back_keyboard
+            
+            content = "👥 <b>Управление пользователями</b>\n\nВыберите действие:"
+            keyboard = get_user_management_keyboard()
+            
+            logger.info(f"Показываем управление пользователями для чата {chat_id}, пользователя {user_id}")
+            result = self.update_chat_message(chat_id, content, keyboard)
+            logger.info(f"Результат показа управления пользователями: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Ошибка показа управления пользователями: {e}")
+            return False
     
     def show_chat_management(self, chat_id: int, user_id: int) -> bool:
         """Показывает управление чатами в чате"""
@@ -165,33 +193,41 @@ class ChatManager:
     
     def show_system_stats(self, chat_id: int, user_id: int) -> bool:
         """Показывает системную статистику в чате"""
-        from .keyboards import get_back_keyboard
-        
-        # Получаем статистику
-        users = storage.get_all("users.json")
-        chats = storage.list_active_chats()
-        orders = storage.get_all("orders.json")
-        inventory = storage.get_all("inventory.json")
-        
-        content = "📊 <b>Системная статистика:</b>\n\n"
-        content += f"👥 <b>Пользователи:</b> {len(users)}\n"
-        content += f"💬 <b>Чаты:</b> {len(chats)}\n"
-        content += f"📦 <b>Заказы:</b> {len(orders)}\n"
-        content += f"📋 <b>Размеров в инвентаре:</b> {len(inventory.get('sizes', {}))}\n\n"
-        
-        # Статистика по ролям
-        role_counts = {}
-        for user_data in users.values():
-            role = user_data.get('role', 'unknown')
-            role_counts[role] = role_counts.get(role, 0) + 1
-        
-        content += "🔑 <b>По ролям:</b>\n"
-        for role, count in role_counts.items():
-            content += f"  {role}: {count}\n"
-        
-        keyboard = get_back_keyboard("admin_panel")
-        
-        return self.update_chat_message(chat_id, content, keyboard)
+        try:
+            from .keyboards import get_back_keyboard
+            
+            logger.info(f"Показываем системную статистику для чата {chat_id}, пользователя {user_id}")
+            
+            # Получаем статистику
+            users = storage.get_all("users.json")
+            chats = storage.list_active_chats()
+            orders = storage.get_all("orders.json")
+            inventory = storage.get_all("inventory.json")
+            
+            content = "📊 <b>Системная статистика:</b>\n\n"
+            content += f"👥 <b>Пользователи:</b> {len(users)}\n"
+            content += f"💬 <b>Чаты:</b> {len(chats)}\n"
+            content += f"📦 <b>Заказы:</b> {len(orders)}\n"
+            content += f"📋 <b>Размеров в инвентаре:</b> {len(inventory.get('sizes', {}))}\n\n"
+            
+            # Статистика по ролям
+            role_counts = {}
+            for user_data in users.values():
+                role = user_data.get('role', 'unknown')
+                role_counts[role] = role_counts.get(role, 0) + 1
+            
+            content += "🔑 <b>По ролям:</b>\n"
+            for role, count in role_counts.items():
+                content += f"  {role}: {count}\n"
+            
+            keyboard = get_back_keyboard("admin_panel")
+            
+            result = self.update_chat_message(chat_id, content, keyboard)
+            logger.info(f"Результат показа системной статистики: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Ошибка показа системной статистики: {e}")
+            return False
     
     def _get_admin_content(self, user_id: int) -> str:
         """Формирует содержимое для админа"""
@@ -259,6 +295,7 @@ class ChatManager:
     def _send_new_message(self, chat_id: int, content: str, keyboard: InlineKeyboardMarkup = None) -> bool:
         """Отправляет новое сообщение в чат"""
         try:
+            logger.info(f"Отправляем новое сообщение в чат {chat_id}")
             # Отправляем новое сообщение
             message = self.bot.send_message(
                 chat_id=chat_id,
@@ -266,6 +303,8 @@ class ChatManager:
                 reply_markup=keyboard,
                 parse_mode='HTML'
             )
+            
+            logger.info(f"Сообщение успешно отправлено, ID: {message.message_id}")
             
             # Сохраняем информацию о новом сообщении в кеш
             chat_key = str(chat_id)
@@ -279,6 +318,8 @@ class ChatManager:
             
             # Сохраняем в БД
             self._save_chat_message(chat_id, self._chat_messages[chat_key])
+            
+            logger.info(f"Новое сообщение сохранено в кеше для чата {chat_id}")
             
             logger.info(f"Новое сообщение отправлено в чат {chat_id} (ID: {message.message_id})")
             return True
@@ -302,6 +343,25 @@ class ChatManager:
             logger.error(f"Ошибка принудительной отправки сообщения в чат {chat_id}: {e}")
             return False
 
+    def _save_initial_message(self, chat_id: int, message_id: int, content: str, keyboard: InlineKeyboardMarkup = None):
+        """Сохраняет начальное сообщение для последующего редактирования"""
+        try:
+            chat_key = str(chat_id)
+            self._chat_messages[chat_key] = {
+                'message_id': message_id,
+                'chat_id': chat_id,
+                'content': content,
+                'keyboard': keyboard.to_dict() if keyboard else None,
+                'created_at': 'now'
+            }
+            
+                    # Сохраняем в БД
+            self._save_chat_message(chat_id, self._chat_messages[chat_key])
+            logger.info(f"Начальное сообщение сохранено для чата {chat_id} (ID: {message_id})")
+            logger.info(f"Кеш чата {chat_id}: {self._chat_messages[chat_key]}")
+        except Exception as e:
+            logger.error(f"Ошибка сохранения начального сообщения для чата {chat_id}: {e}")
+    
     def _clear_old_data(self):
         """Очищает старые данные чатов при запуске"""
         try:

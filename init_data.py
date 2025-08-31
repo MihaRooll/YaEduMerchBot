@@ -128,29 +128,28 @@ def init_system():
     # Добавим тестовый инвентарь
     logger.info("Добавление тестового инвентаря...")
     test_inventory = {
-        "M_black": {
-            "size": "M",
-            "color": "black",
-            "qty_total": 10,
-            "qty_reserved": 0
+        "products": {
+            "longsleeve_white": {
+                "name": "Лонгслив белый",
+                "type": "longsleeve",
+                "base_color": "white",
+                "sizes": {
+                    "S": {"qty_total": 10, "qty_reserved": 0},
+                    "M": {"qty_total": 15, "qty_reserved": 0},
+                    "L": {"qty_total": 12, "qty_reserved": 0}
+                },
+                "active": True
+            }
         },
-        "M_white": {
-            "size": "M", 
-            "color": "white",
-            "qty_total": 15,
-            "qty_reserved": 0
-        },
-        "L_black": {
-            "size": "L",
-            "color": "black", 
-            "qty_total": 8,
-            "qty_reserved": 0
+        "sizes": {
+            "S": {"colors": {"white": {"qty_total": 10, "qty_reserved": 0}}},
+            "M": {"colors": {"white": {"qty_total": 15, "qty_reserved": 0}}},
+            "L": {"colors": {"white": {"qty_total": 12, "qty_reserved": 0}}}
         }
     }
     
-    for item_id, item_data in test_inventory.items():
-        storage.set("inventory.json", item_id, item_data)
-        logger.info(f"Добавлен товар: {item_data['size']} {item_data['color']}")
+    storage.set("inventory.json", "data", test_inventory)
+    logger.info("Инвентарь инициализирован")
     
     # Добавим базовые настройки
     logger.info("Добавление базовых настроек...")
