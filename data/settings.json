@@ -1,0 +1,6 @@
+{
+  "system_name": "YaEduMerchBot",
+  "version": "1.0.0",
+  "order_prefix": "ORD",
+  "max_orders_per_user": 1
+}

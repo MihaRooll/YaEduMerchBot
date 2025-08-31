@@ -1,0 +1,14 @@
+{
+  "-1001234567890": {
+    "title": "Общий чат мерча",
+    "prefix": "A",
+    "is_common": true,
+    "is_active": true
+  },
+  "-1001234567891": {
+    "title": "Чат заказов",
+    "prefix": "B",
+    "is_common": false,
+    "is_active": true
+  }
+}

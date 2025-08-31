@@ -1,0 +1,20 @@
+{
+  "M_black": {
+    "size": "M",
+    "color": "black",
+    "qty_total": 10,
+    "qty_reserved": 0
+  },
+  "M_white": {
+    "size": "M",
+    "color": "white",
+    "qty_total": 15,
+    "qty_reserved": 0
+  },
+  "L_black": {
+    "size": "L",
+    "color": "black",
+    "qty_total": 8,
+    "qty_reserved": 0
+  }
+}

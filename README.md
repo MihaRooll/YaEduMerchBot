@@ -1,106 +1,112 @@
-# YaEduMerchBot
+# YaEduMerchBot - Бот для заказа мерча Я.Образования
 
-Telegram bot for Yandex Educational Merchandise
+## ��� Быстрый старт
 
-## Description
-
-YaEduMerchBot is a Telegram bot designed to handle educational merchandise operations for Yandex. This bot provides an interface for users to browse, order, and manage educational materials and merchandise.
-
-## Features
-
-- 🛍️ Browse merchandise catalog
-- 📦 Order management
-- 👤 User profile management
-- 📊 Admin dashboard
-- 💳 Payment integration
-
-## Installation
-
-### Локальная разработка
-
-1. Clone the repository:
-```bash
-git clone https://github.com/MihaRooll/YaEduMerchBot.git
-cd YaEduMerchBot
-```
-
-2. Install dependencies:
+### 1. Установка зависимостей
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
+### 2. Настройка токена бота
+Создайте файл `.env` в корне проекта:
 ```bash
 cp env.example .env
-# Edit .env with your configuration
 ```
 
-4. Run the bot:
+Отредактируйте `.env` и укажите ваш токен бота:
+```env
+BOT_TOKEN=ваш_токен_бота_здесь
+MAIN_ADMIN_ID=445075408
+```
+
+### 3. Инициализация данных
+```bash
+python init_data.py
+```
+
+### 4. Запуск бота
 ```bash
 python main.py
 ```
 
-### Docker деплой
+## ��� Система ролей
 
-1. Build and run with Docker:
-```bash
-docker build -t yaedumerchbot .
-docker run -d --name yaedumerchbot --env-file .env yaedumerchbot
-```
+### Админ (admin)
+- **Может**: ВСЕ
+- **Добавляет**: админов, координаторов, промо
+- **Команды**: `/admin`, `/adduser`, `/users`, `/stats`
 
-2. Or use Docker Compose:
-```bash
-docker compose up -d
-```
+### Координатор (coordinator)
+- **Может**: добавлять в промо
+- **Управляет**: заказами, инвентарем
 
-### Автоматический деплой
+### Промо (promo)
+- **Может**: работать с заказами
+- **Доступ**: общий чат + добавленные координатором
 
-Проект настроен для автоматического деплоя через GitHub Actions. См. [DEPLOY.md](DEPLOY.md) для подробной информации.
+### Пользователь (user)
+- **Может**: создавать заказы
+- **Ограничения**: по лимитам
 
-## Configuration
-
-Create a `.env` file with the following variables:
-
-```
-BOT_TOKEN=your_telegram_bot_token
-DATABASE_URL=your_database_url
-ADMIN_IDS=comma_separated_admin_ids
-PAYMENT_TOKEN=your_payment_provider_token
-```
-
-## Project Structure
+## ��� Структура проекта
 
 ```
-YaEduMerchBot/
-├── main.py                    # Bot entry point
-├── bot/                       # Bot logic
-│   ├── __init__.py
-│   ├── handlers/              # Message handlers
-│   ├── keyboards/             # Inline keyboards
-│   ├── middlewares/           # Bot middlewares
-│   └── utils/                 # Utility functions
-├── database/                  # Database models and operations
-├── config/                    # Configuration files
-├── .github/workflows/         # GitHub Actions CI/CD
-│   ├── deploy.yml            # Production deployment
-│   ├── pr-preview.yml        # PR preview deployment
-│   └── pr-preview-cleanup.yml # PR cleanup
-├── Dockerfile                 # Docker container configuration
-├── compose.yml               # Docker Compose for production
-├── compose.preview.yml       # Docker Compose for PR previews
-├── requirements.txt          # Python dependencies
-├── env.example              # Environment variables template
-├── DEPLOY.md                # Deployment documentation
-└── README.md                # This file
+YaEduMerchBot_new/
+├── data/                    # JSON файлы для хранения данных
+├── src/                     # Исходный код
+│   ├── storage.py          # Работа с JSON файлами
+│   ├── auth.py             # Система авторизации и ролей
+│   ├── bot.py              # Основной класс бота
+│   └── handlers/           # Обработчики команд
+│       └── admin.py        # Админские команды
+├── config.py               # Конфигурация
+├── main.py                 # Точка входа
+├── init_data.py            # Инициализация данных
+└── requirements.txt        # Зависимости
 ```
 
-## Contributing
+## ���️ Команды бота
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+### Общие команды
+- `/start` - Начать работу
+- `/help` - Справка по командам
+- `/status` - Ваш статус в системе
 
-## License
+### Админские команды
+- `/admin` - Админская панель
+- `/adduser <user_id> <role>` - Добавить пользователя
+- `/users` - Список всех пользователей
+- `/stats` - Статистика системы
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## ��� Хранение данных
+
+Все данные хранятся в JSON файлах в папке `data/`:
+- `users.json` - Пользователи и их роли
+- `chats.json` - Чаты и настройки
+- `inventory.json` - Товары и остатки
+- `orders.json` - Заказы
+- `settings.json` - Настройки системы
+
+## ��� Разработка
+
+### Добавление новых команд
+1. Создайте обработчик в `src/handlers/`
+2. Зарегистрируйте его в `src/bot.py`
+3. Обновите справку в `handle_help`
+
+### Добавление новых ролей
+1. Добавьте роль в `RoleManager.ROLES` в `src/auth.py`
+2. Обновите логику проверки прав
+3. Добавьте соответствующие команды
+
+## ��� Важно
+
+- Главный админ (ID: 445075408) создается автоматически
+- Все изменения ролей логируются
+- Система проверяет права на каждое действие
+- JSON файлы создаются автоматически при первом запуске
+
+## ��� Логирование
+
+Все действия логируются в консоль с уровнем INFO.
+Для изменения уровня логирования отредактируйте `main.py`.
