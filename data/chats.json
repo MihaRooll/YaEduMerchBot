@@ -1,14 +1,54 @@
 {
-  "-1001234567890": {
-    "title": "Общий чат мерча",
+  "-1002076884561": {
+    "chat_id": "-1002076884561",
+    "title": "A | ЗАКАЗЫ",
+    "type": "supergroup",
+    "added_by": 445075408,
+    "added_at": "1756637094",
+    "is_active": true,
+    "description": "",
+    "username": "",
     "prefix": "A",
-    "is_common": true,
-    "is_active": true
+    "prefix_changed_at": "1756644197",
+    "prefix_changed_by": 445075408
   },
-  "-1001234567891": {
-    "title": "Чат заказов",
+  "-1002216825710": {
+    "chat_id": "-1002216825710",
+    "title": "B | ЗАКАЗЫ",
+    "type": "supergroup",
+    "added_by": 445075408,
+    "added_at": "1756637756",
+    "is_active": true,
+    "description": "",
+    "username": "",
     "prefix": "B",
-    "is_common": false,
-    "is_active": true
+    "prefix_changed_at": "1756644191",
+    "prefix_changed_by": 445075408
+  },
+  "-1002178030528": {
+    "chat_id": "-1002178030528",
+    "title": "С | ЗАКАЗЫ",
+    "type": "supergroup",
+    "added_by": 445075408,
+    "added_at": "1756637765",
+    "is_active": true,
+    "description": "",
+    "username": "",
+    "prefix": "C",
+    "prefix_changed_at": "1756644145",
+    "prefix_changed_by": 445075408
+  },
+  "-1002449253789": {
+    "chat_id": "-1002449253789",
+    "title": "D | ЗАКАЗЫ",
+    "type": "supergroup",
+    "added_by": 445075408,
+    "added_at": "1756637769",
+    "is_active": true,
+    "description": "",
+    "username": "",
+    "prefix": "D",
+    "prefix_changed_at": "1756644137",
+    "prefix_changed_by": 445075408
   }
 }

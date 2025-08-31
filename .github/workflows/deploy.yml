@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # нужно для комментария к коммиту
+  contents: write
   packages: write
 
 concurrency:
@@ -34,6 +34,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:latest
@@ -49,6 +50,8 @@ jobs:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
       PAYMENT_TOKEN: ${{ secrets.PAYMENT_TOKEN }}
+      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      # WEBHOOK_PORT можно не задавать — в compose.yml есть дефолт 8443
     steps:
       - uses: actions/checkout@v4
 
@@ -83,6 +86,20 @@ jobs:
         shell: powershell
         run: docker compose -f compose.yml config
 
+      - name: Preflight: free 8443 if busy by old prod container
+        shell: powershell
+        continue-on-error: true
+        run: |
+          $cid = (docker ps --filter "name=^yaedumerchbot$" --format "{{.ID}}")
+          if ($cid) {
+            $ports = docker ps --filter "id=$cid" --format "{{.Ports}}"
+            if ($ports -match "0\.0\.0\.0:8443->") {
+              Write-Host "Stopping old prod container using 8443: $cid"
+              docker stop $cid | Out-Null
+              docker rm $cid | Out-Null
+            }
+          }
+
       - name: Up stack
         shell: powershell
         env:
@@ -92,10 +109,12 @@ jobs:
           ADMIN_IDS: ${{ env.ADMIN_IDS }}
           PAYMENT_TOKEN: ${{ env.PAYMENT_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          WEBHOOK_URL: ${{ env.WEBHOOK_URL }}
+          WEBHOOK_PORT: ${{ env.WEBHOOK_PORT }}
         run: |
-          echo "::add-mask::${env:BOT_TOKEN}"
-          echo "::add-mask::${env:TG_TOKEN}"
-          echo "::add-mask::${env:PAYMENT_TOKEN}"
+          if ($env:BOT_TOKEN) { echo "::add-mask::$($env:BOT_TOKEN)" }
+          if ($env:TG_TOKEN) { echo "::add-mask::$($env:TG_TOKEN)" }
+          if ($env:PAYMENT_TOKEN) { echo "::add-mask::$($env:PAYMENT_TOKEN)" }
           docker compose -f compose.yml -p yaedumerchbot up -d --remove-orphans --no-build
 
       # ===== ЛОГИ: сбор, маскировка, артефакт, комментарий к коммиту =====

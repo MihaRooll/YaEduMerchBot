@@ -1,0 +1,22 @@
+# Git и CI
+.git
+.github
+*.dockerbuild
+
+# IDE/venv
+.venv/
+venv/
+.idea/
+.vscode/
+
+# Кеши/логи/данные
+__pycache__/
+*.py[cod]
+*.db
+*.log
+logs/
+data/
+
+# Прочее
+.env
+tests/

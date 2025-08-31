@@ -14,6 +14,8 @@ class ChatManager:
     def __init__(self, bot: TeleBot):
         self.bot = bot
         self._chat_messages: Dict[str, Dict[str, Any]] = {}  # chat_id -> message_info
+        # При запуске очищаем старые данные и начинаем с чистого листа
+        self._clear_old_data()
         # Загружаем существующие сообщения из БД
         self._load_existing_messages()
     
@@ -64,37 +66,57 @@ class ChatManager:
             'created_at': 'now'
         }
     
-    def update_chat_message(self, chat_id: int, new_content: str, 
-                           new_keyboard: InlineKeyboardMarkup) -> bool:
+    def update_chat_message(self, chat_id: int, content: str, keyboard: InlineKeyboardMarkup = None) -> bool:
         """
-        Обновляет существующее сообщение чата
+        Основной метод для обновления сообщения чата
+        Автоматически определяет, нужно ли обновить существующее или отправить новое
         """
-        chat_key = str(chat_id)
-        
-        if chat_key not in self._chat_messages:
-            logger.warning(f"Сообщение для чата {chat_id} не найдено")
-            return False
-        
-        message_info = self._chat_messages[chat_key]
-        
         try:
-            # Редактируем существующее сообщение
-            self.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_info['message_id'],
-                text=new_content,
-                reply_markup=new_keyboard,
-                parse_mode='HTML'
-            )
+            chat_key = str(chat_id)
             
-            # Обновляем кеш
-            message_info['content'] = new_content
+            # Проверяем, есть ли активное сообщение для этого чата
+            if chat_key in self._chat_messages:
+                message_info = self._chat_messages[chat_key]
+                message_id = message_info.get('message_id')
+                
+                # Проверяем, изменился ли контент или клавиатура
+                current_content = message_info.get('content', '')
+                current_keyboard = message_info.get('keyboard')
+                new_keyboard_dict = keyboard.to_dict() if keyboard else None
+                
+                # Если контент и клавиатура не изменились, пропускаем обновление
+                if current_content == content and current_keyboard == new_keyboard_dict:
+                    logger.info(f"Контент не изменился для чата {chat_id}, пропускаем обновление")
+                    return True
+                
+                if message_id:
+                    # Пытаемся обновить существующее сообщение
+                    try:
+                        self.bot.edit_message_text(
+                            chat_id=chat_id,
+                            message_id=message_id,
+                            text=content,
+                            reply_markup=keyboard,
+                            parse_mode='HTML'
+                        )
+                        
+                        # Обновляем кеш
+                        message_info['content'] = content
+                        message_info['keyboard'] = new_keyboard_dict
+                        
+                        # Обновляем в БД
+                        self._update_chat_message(chat_id, message_info)
+                        
+                        logger.info(f"Сообщение чата {chat_id} обновлено (ID: {message_id})")
+                        return True
+                        
+                    except Exception as e:
+                        logger.warning(f"Не удалось обновить сообщение {message_id}: {e}")
+                        # Если не удалось обновить, удаляем старое из кеша
+                        del self._chat_messages[chat_key]
             
-            # Обновляем в БД
-            self._update_chat_message(chat_id, message_info)
-            
-            logger.info(f"Сообщение чата {chat_id} обновлено")
-            return True
+            # Отправляем новое сообщение
+            return self._send_new_message(chat_id, content, keyboard)
             
         except Exception as e:
             logger.error(f"Ошибка обновления сообщения чата {chat_id}: {e}")
@@ -233,3 +255,60 @@ class ChatManager:
         else:
             self._chat_messages.clear()
             logger.info("Весь кеш чатов очищен")
+
+    def _send_new_message(self, chat_id: int, content: str, keyboard: InlineKeyboardMarkup = None) -> bool:
+        """Отправляет новое сообщение в чат"""
+        try:
+            # Отправляем новое сообщение
+            message = self.bot.send_message(
+                chat_id=chat_id,
+                text=content,
+                reply_markup=keyboard,
+                parse_mode='HTML'
+            )
+            
+            # Сохраняем информацию о новом сообщении в кеш
+            chat_key = str(chat_id)
+            self._chat_messages[chat_key] = {
+                'message_id': message.message_id,
+                'chat_id': chat_id,
+                'content': content,
+                'keyboard': keyboard.to_dict() if keyboard else None,
+                'created_at': 'now'
+            }
+            
+            # Сохраняем в БД
+            self._save_chat_message(chat_id, self._chat_messages[chat_key])
+            
+            logger.info(f"Новое сообщение отправлено в чат {chat_id} (ID: {message.message_id})")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка отправки нового сообщения в чат {chat_id}: {e}")
+            return False
+
+    def force_new_message(self, chat_id: int, content: str, keyboard: InlineKeyboardMarkup = None) -> bool:
+        """Принудительно отправляет новое сообщение, игнорируя существующее"""
+        try:
+            # Очищаем кеш для этого чата
+            chat_key = str(chat_id)
+            if chat_key in self._chat_messages:
+                del self._chat_messages[chat_key]
+            
+            # Отправляем новое сообщение
+            return self._send_new_message(chat_id, content, keyboard)
+            
+        except Exception as e:
+            logger.error(f"Ошибка принудительной отправки сообщения в чат {chat_id}: {e}")
+            return False
+
+    def _clear_old_data(self):
+        """Очищает старые данные чатов при запуске"""
+        try:
+            # Очищаем файл chat_messages.json
+            storage.set("chat_messages.json", "data", {})
+            # Очищаем кеш
+            self._chat_messages.clear()
+            logger.info("Старые данные чатов очищены")
+        except Exception as e:
+            logger.warning(f"Не удалось очистить старые данные: {e}")

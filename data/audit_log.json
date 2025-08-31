@@ -1,1 +1,16 @@
-{}
+{
+  "2025-08-31T13:18:08.398400_445075408_add_user": {
+    "timestamp": "2025-08-31T13:18:08.398400",
+    "actor_id": 445075408,
+    "actor_name": "Главный Администратор",
+    "actor_role": "admin",
+    "action": "add_user",
+    "target": "user",
+    "target_id": "12331212313",
+    "details": {
+      "new_role": "admin",
+      "username": "User_12331212313"
+    },
+    "success": true
+  }
+}

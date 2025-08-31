@@ -200,6 +200,18 @@ def get_back_keyboard(callback_data: str) -> InlineKeyboardMarkup:
     return keyboard
 
 
+def get_admin_settings_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура настроек администратора"""
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    keyboard.add(
+        InlineKeyboardButton("💬 Управление чатами", callback_data="admin_manage_chats"),
+        InlineKeyboardButton("🔧 Системные настройки", callback_data="admin_system_settings"),
+        InlineKeyboardButton("📊 Логи и мониторинг", callback_data="admin_logs"),
+        InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")
+    )
+    return keyboard
+
+
 def get_role_selection_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура выбора роли для добавления пользователя"""
     keyboard = InlineKeyboardMarkup(row_width=2)

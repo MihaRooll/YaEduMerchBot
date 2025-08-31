@@ -11,15 +11,16 @@ services:
       - PAYMENT_TOKEN=${PAYMENT_TOKEN}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DEBUG=${DEBUG:-False}
-      - WEBHOOK_URL=${WEBHOOK_URL}
-      - WEBHOOK_PORT=${WEBHOOK_PORT:-8443}
+      - WEBHOOK_URL=${WEBHOOK_URL}           # ПРОД: прокидывается из секретов в job deploy
+      - WEBHOOK_PORT=${WEBHOOK_PORT:-8443}   # дефолт 8443
     volumes:
       - bot_data:/app/data
       - ./logs:/app/logs
     ports:
       - "${WEBHOOK_PORT:-8443}:8443"
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8443/health', timeout=5)"]
+      # Без зависимости от 'requests'
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8443/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3

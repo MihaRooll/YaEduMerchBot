@@ -1,4 +1,4 @@
-# Dockerfile
+# Используем лёгкий базовый образ с Python 3.11
 FROM python:3.11-slim
 
 # Базовые настройки Python
@@ -7,27 +7,26 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Системные зависимости (минимум) + создание рабочей директории
+# Системные зависимости (минимум) + очистка кеша apt
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
+# Рабочая директория
 WORKDIR /app
 
-# Сначала зависимости — для лучшего кеширования
-# Если у вас другой файл зависимостей (poetry/requirements-prod.txt) — скорректируйте строку ниже
-COPY requirements.txt ./ 
+# 1) Сначала зависимости (для кеширования слоёв)
+COPY requirements.txt .
 RUN python -m pip install --upgrade pip && pip install -r requirements.txt
 
-# Затем — весь код
+# 2) Затем — весь код
 COPY . .
 
-# Гарантируем наличие директорий для volume'ов (на случай, если монтирование не произойдёт)
+# Каталоги под volume'ы (на случай, если не смонтируются)
 RUN mkdir -p /app/data /app/logs
 
-# Откройте порт, который слушает ваш webhook-сервер (судя по compose — 8443)
+# Порт для вебхука (судя по compose — 8443)
 EXPOSE 8443
 
-# Если точка входа у вас иная — скорректируйте команду ниже.
-# Например: ["python", "-m", "src.bot"] или путь до вашего основного скрипта.
+# Точка входа — подстрой при необходимости (например, ["python", "-m", "src.bot"])
 CMD ["python", "main.py"]

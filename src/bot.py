@@ -29,8 +29,8 @@ class YaEduMerchBot:
         # Админские команды
         register_admin_handlers(self.bot, self.chat_manager)
         
-        # Обработчики callback-запросов (исключаем админские - они обрабатываются в admin.py)
-        self.bot.callback_query_handler(func=lambda call: not call.data.startswith('admin_'))(self.handle_callback)
+        # Обработчики callback-запросов (один общий обработчик для всех)
+        self.bot.callback_query_handler(func=lambda call: True)(self.handle_callback)
         
         # Обработчик неизвестных команд (ПОСЛЕДНИМ)
         self.bot.message_handler(func=lambda message: True)(self.handle_unknown)
@@ -280,23 +280,60 @@ class YaEduMerchBot:
             chat_id = call.message.chat.id
             user_id = call.from_user.id
             
+            # Логируем callback для отладки
+            logger.info(f"Получен callback: {call.data} от пользователя {user_id} в чате {chat_id}")
+            
             # Обрабатываем различные типы callback
             if call.data == "back_to_main":
+                logger.info("Обрабатываем back_to_main")
                 self._handle_back_to_main(call)
             elif call.data == "admin_panel":
+                logger.info("Обрабатываем admin_panel")
                 self.chat_manager.show_admin_panel(chat_id, user_id)
             elif call.data == "admin_users":
+                logger.info("Обрабатываем admin_users")
                 self.chat_manager.show_user_management(chat_id, user_id)
             elif call.data == "admin_stats":
+                logger.info("Обрабатываем admin_stats")
                 self.chat_manager.show_system_stats(chat_id, user_id)
             elif call.data == "admin_settings":
+                logger.info("Обрабатываем admin_settings")
                 self._handle_admin_settings(call)
+            elif call.data == "admin_manage_chats":
+                logger.info("Обрабатываем admin_manage_chats")
+                self._handle_admin_manage_chats(call)
+            elif call.data == "admin_system_settings":
+                logger.info("Обрабатываем admin_system_settings")
+                self._handle_admin_system_settings(call)
+            elif call.data == "admin_logs":
+                logger.info("Обрабатываем admin_logs")
+                self._handle_admin_logs(call)
             elif call.data.startswith("coord_"):
                 self._handle_coordinator_callback(call)
             elif call.data.startswith("promo_"):
                 self._handle_promo_callback(call)
             elif call.data.startswith("user_"):
                 self._handle_user_callback(call)
+            elif call.data.startswith("chat_actions_"):
+                logger.info("Обрабатываем chat_actions")
+                target_chat_id = call.data.replace("chat_actions_", "")
+                self._handle_chat_actions(call, target_chat_id)
+            elif call.data.startswith("deactivate_chat_"):
+                logger.info("Обрабатываем deactivate_chat")
+                target_chat_id = call.data.replace("deactivate_chat_", "")
+                self._handle_chat_deactivate(call, target_chat_id)
+            elif call.data.startswith("activate_chat_"):
+                logger.info("Обрабатываем activate_chat")
+                target_chat_id = call.data.replace("activate_chat_", "")
+                self._handle_chat_activate(call, target_chat_id)
+            elif call.data.startswith("delete_chat_"):
+                logger.info("Обрабатываем delete_chat")
+                target_chat_id = call.data.replace("delete_chat_", "")
+                self._handle_chat_delete(call, target_chat_id)
+            elif call.data.startswith("change_prefix_"):
+                logger.info("Обрабатываем change_prefix")
+                target_chat_id = call.data.replace("change_prefix_", "")
+                self._handle_change_prefix(call, target_chat_id)
             elif call.data.startswith("order_"):
                 self._handle_order_callback(call)
             else:
@@ -317,8 +354,22 @@ class YaEduMerchBot:
     
     def _handle_admin_callback(self, call: CallbackQuery):
         """Обработчик админских callback"""
-        # Пока просто отвечаем
-        self.bot.answer_callback_query(call.id, "Админская функция")
+        # Проверяем права администратора
+        if not role_manager.has_permission(call.from_user.id, "admin"):
+            logger.warning(f"Пользователь {call.from_user.id} не имеет прав администратора")
+            self.bot.answer_callback_query(call.id, "❌ Нет прав администратора!")
+            return
+        
+        # Обрабатываем различные админские callback'ы
+        if call.data == "admin_manage_chats":
+            self._handle_admin_manage_chats(call)
+        elif call.data == "admin_system_settings":
+            self._handle_admin_system_settings(call)
+        elif call.data == "admin_logs":
+            self._handle_admin_logs(call)
+        else:
+            logger.warning(f"Неизвестный админский callback: {call.data}")
+            self.bot.answer_callback_query(call.id, "Неизвестная админская функция")
     
     def _handle_coordinator_callback(self, call: CallbackQuery):
         """Обработчик callback координатора"""
@@ -387,24 +438,75 @@ class YaEduMerchBot:
     
     def _handle_admin_settings(self, call: CallbackQuery):
         """Обработчик настроек администратора"""
-        from .keyboards import get_back_keyboard
+        from .keyboards import get_admin_settings_keyboard
         
         content = "⚙️ <b>Настройки системы</b>\n\n"
-        content += "Функция настроек будет реализована в следующих версиях.\n\n"
-        content += "Пока что используйте основные функции админ-панели."
+        content += "Выберите раздел настроек для управления системой:"
         
-        keyboard = get_back_keyboard("back_to_main")
+        keyboard = get_admin_settings_keyboard()
         self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
     
+    def _handle_admin_manage_chats(self, call: CallbackQuery):
+        """Обработчик управления чатами из меню настроек"""
+        from .handlers.admin import _show_chats_list
+        _show_chats_list(call.message.chat.id, self.chat_manager)
+    
+    def _handle_admin_system_settings(self, call: CallbackQuery):
+        """Обработчик системных настроек"""
+        from .keyboards import get_back_keyboard
+        
+        content = "🔧 <b>Системные настройки</b>\n\n"
+        content += "Функция системных настроек будет реализована в следующих версиях.\n\n"
+        content += "Пока что используйте основные функции админ-панели."
+        
+        keyboard = get_back_keyboard("admin_settings")
+        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+    
+    def _handle_admin_logs(self, call: CallbackQuery):
+        """Обработчик логов и мониторинга"""
+        from .keyboards import get_back_keyboard
+        
+        content = "📊 <b>Логи и мониторинг</b>\n\n"
+        content += "Функция просмотра логов будет реализована в следующих версиях.\n\n"
+        content += "Пока что используйте основные функции админ-панели."
+        
+        keyboard = get_back_keyboard("admin_settings")
+        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+
+    def _handle_chat_deactivate(self, call: CallbackQuery, target_chat_id: str):
+        """Обработчик деактивации чата"""
+        from .handlers.admin import _handle_chat_deactivate
+        _handle_chat_deactivate(call.message.chat.id, call.from_user.id, target_chat_id, self.chat_manager)
+
+    def _handle_chat_activate(self, call: CallbackQuery, target_chat_id: str):
+        """Обработчик активации чата"""
+        from .handlers.admin import _handle_chat_activate
+        _handle_chat_activate(call.message.chat.id, call.from_user.id, target_chat_id, self.chat_manager)
+
+    def _handle_chat_delete(self, call: CallbackQuery, target_chat_id: str):
+        """Обработчик удаления чата"""
+        from .handlers.admin import _handle_chat_delete
+        _handle_chat_delete(call.message.chat.id, call.from_user.id, target_chat_id, self.chat_manager)
+
+    def _handle_change_prefix(self, call: CallbackQuery, target_chat_id: str):
+        """Обработчик изменения индекса чата"""
+        from .handlers.admin import _show_change_prefix_form
+        _show_change_prefix_form(call.message.chat.id, call.from_user.id, target_chat_id, self.chat_manager)
+
+    def _handle_chat_actions(self, call: CallbackQuery, target_chat_id: str):
+        """Обработчик действий с чатом"""
+        from .handlers.admin import _show_chat_actions
+        _show_chat_actions(call.message.chat.id, target_chat_id, self.chat_manager)
+
     def handle_unknown(self, message: Message):
         """Обработчик неизвестных команд"""
-        from .handlers.admin import _is_waiting_for_id
+        from .handlers.admin import _is_waiting_for_id, _is_waiting_for_prefix
         
         user_id = message.from_user.id
         chat_id = message.chat.id
         
         # Не показываем "неизвестная команда" если пользователь в интерактивном режиме
-        if _is_waiting_for_id(user_id):
+        if _is_waiting_for_id(user_id) or _is_waiting_for_prefix(user_id):
             return
         
         unknown_text = "❓ Неизвестная команда\n\n"

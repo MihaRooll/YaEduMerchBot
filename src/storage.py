@@ -75,11 +75,16 @@ class JSONStorage:
         data = self._read_file(filename)
         return data.get(key)
     
-    def set(self, filename: str, key: str, value: Any):
+    def set(self, filename: str, key: str, value: Any) -> bool:
         """Установить значение по ключу"""
-        data = self._read_file(filename)
-        data[key] = value
-        self._write_file(filename, data)
+        try:
+            data = self._read_file(filename)
+            data[key] = value
+            self._write_file(filename, data)
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка при установке значения в {filename}: {e}")
+            return False
     
     def delete(self, filename: str, key: str) -> bool:
         """Удалить значение по ключу"""
