@@ -390,7 +390,14 @@ class YaEduMerchBot:
             content += "Эта функция будет реализована в следующих версиях."
         
         keyboard = get_back_keyboard("back_to_main")
-        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
     
     def _handle_promo_callback(self, call: CallbackQuery):
         """Обработчик callback промо"""
@@ -410,7 +417,14 @@ class YaEduMerchBot:
             content += "Эта функция будет реализована в следующих версиях."
         
         keyboard = get_back_keyboard("back_to_main")
-        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
     
     def _handle_user_callback(self, call: CallbackQuery):
         """Обработчик callback пользователя"""
@@ -430,7 +444,14 @@ class YaEduMerchBot:
             content += "Эта функция будет реализована в следующих версиях."
         
         keyboard = get_back_keyboard("back_to_main")
-        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
     
     def _handle_order_callback(self, call: CallbackQuery):
         """Обработчик callback заказов"""
@@ -444,12 +465,21 @@ class YaEduMerchBot:
         content += "Выберите раздел настроек для управления системой:"
         
         keyboard = get_admin_settings_keyboard()
-        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
     
     def _handle_admin_manage_chats(self, call: CallbackQuery):
         """Обработчик управления чатами из меню настроек"""
         logger.info(f"Обрабатываем admin_manage_chats для пользователя {call.from_user.id}")
         from .handlers.admin import _show_chats_list
+        
+        # Отправляем новое сообщение вместо редактирования
         _show_chats_list(call.message.chat.id, self.chat_manager)
     
     def _handle_admin_system_settings(self, call: CallbackQuery):
@@ -461,7 +491,14 @@ class YaEduMerchBot:
         content += "Пока что используйте основные функции админ-панели."
         
         keyboard = get_back_keyboard("admin_settings")
-        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
     
     def _handle_admin_logs(self, call: CallbackQuery):
         """Обработчик логов и мониторинга"""
@@ -472,7 +509,14 @@ class YaEduMerchBot:
         content += "Пока что используйте основные функции админ-панели."
         
         keyboard = get_back_keyboard("admin_settings")
-        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
+        
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=call.message.chat.id,
+            text=content,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
 
     def _handle_chat_deactivate(self, call: CallbackQuery, target_chat_id: str):
         """Обработчик деактивации чата"""
@@ -518,7 +562,13 @@ class YaEduMerchBot:
         from .keyboards import get_back_keyboard
         keyboard = get_back_keyboard("back_to_main")
         
-        self.chat_manager.update_chat_message(chat_id, unknown_text, keyboard)
+        # Отправляем новое сообщение вместо редактирования
+        self.bot.send_message(
+            chat_id=chat_id,
+            text=unknown_text,
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
     
     def run(self):
         """Запуск бота"""

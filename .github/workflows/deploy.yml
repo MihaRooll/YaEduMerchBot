@@ -86,18 +86,66 @@ jobs:
         shell: powershell
         run: docker compose -f compose.yml config
 
-      - name: "Preflight: free 8443 if busy by old prod container"
+      - name: "Preflight: free 8443 (stop our old containers, detect foreign holders)"
         shell: powershell
-        continue-on-error: true
         run: |
-          $cid = (docker ps --filter "name=^yaedumerchbot$" --format "{{.ID}}")
-          if ($cid) {
-            $ports = docker ps --filter "id=$cid" --format "{{.Ports}}"
-            if ($ports -match "0\.0\.0\.0:8443->") {
-              Write-Host "Stopping old prod container using 8443: $cid"
-              docker stop $cid | Out-Null
-              docker rm $cid | Out-Null
+          # 1) Остановим наши контейнеры (prod/preview), если они держат 8443
+          $holders = docker ps --format "{{.ID}} {{.Names}} {{.Ports}}" | Select-String '0\.0\.0\.0:8443->'
+          $stoppedAny = $false
+          $foreign = $false
+          if ($holders) {
+            foreach ($line in $holders) {
+              $t = $line.ToString().Trim().Split(' ',3,[System.StringSplitOptions]::RemoveEmptyEntries)
+              $id = $t[0]; $name = $t[1]
+              if ($name -match '^yaedumerchbot($|-)') {
+                Write-Host "Stopping our container using 8443: $name ($id)"
+                docker stop $id | Out-Null
+                docker rm $id | Out-Null
+                $stoppedAny = $true
+              } else {
+                Write-Host "Another container holds 8443: $name ($id) — will not stop automatically."
+                $foreign = $true
+              }
             }
+          } else {
+            Write-Host "No Docker containers currently publish 0.0.0.0:8443"
+          }
+
+          # 2) Диагностика OS-процессов, слушающих 8443 (не убиваем, только логируем)
+          try {
+            $tcp = Get-NetTCPConnection -LocalPort 8443 -ErrorAction SilentlyContinue | Where-Object {$_.State -eq 'Listen'}
+            if ($tcp) {
+              Write-Host "WARNING: Port 8443 is used by OS process(es):"
+              foreach ($c in $tcp) {
+                $pid = $c.OwningProcess
+                try {
+                  $p = Get-Process -Id $pid -ErrorAction Stop
+                  Write-Host (" - PID {0} : {1}" -f $pid, $p.ProcessName)
+                } catch {
+                  Write-Host (" - PID {0}" -f $pid)
+                }
+              }
+            }
+          } catch {
+            Write-Host "Get-NetTCPConnection is not available; skipping OS-level diagnostics."
+          }
+
+          # 3) Если 8443 занят НЕ нашим контейнером — падаем рано с понятным сообщением
+          #    (чтобы не ловить потом 'Bind for 0.0.0.0:8443 failed')
+          $stillBusy = $false
+          $check = docker ps --format "{{.ID}} {{.Names}} {{.Ports}}" | Select-String '0\.0\.0\.0:8443->'
+          if ($check) {
+            foreach ($line in $check) {
+              $t = $line.ToString().Trim().Split(' ',3,[System.StringSplitOptions]::RemoveEmptyEntries)
+              $name = $t[1]
+              if ($name -notmatch '^yaedumerchbot($|-)') {
+                $stillBusy = $true
+              }
+            }
+          }
+          if ($stillBusy) {
+            Write-Error "Port 8443 is occupied by non-YaEduMerch container(s). Free it manually or change WEBHOOK_PORT/compose before deploy."
+            exit 1
           }
 
       - name: Up stack
@@ -137,7 +185,7 @@ jobs:
           $c = [System.Text.RegularExpressions.Regex]::Replace($c, '(?i)(BOT_TOKEN|API_KEY|TOKEN|SECRET)\s*[:=]\s*([^\s]+)', '$1=***')
           Set-Content -Path 'deploy.sanitized.log' -Value $c -Encoding UTF8
           (Get-Content 'deploy.sanitized.log' -Tail 200) | Out-File 'deploy.tail.log' -Encoding UTF8
-          if (!(Test-Path 'deploy.tail.log')) { '' | Out-File -FilePath 'deploy.tail.log' -Encoding utf8 }
+          if (!(Test-Path -Path 'deploy.tail.log')) { '' | Out-File -FilePath 'deploy.tail.log' -Encoding utf8 }
 
       - name: Upload full logs as artifact
         if: always()
