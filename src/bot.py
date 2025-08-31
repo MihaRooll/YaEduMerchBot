@@ -283,6 +283,14 @@ class YaEduMerchBot:
             # Обрабатываем различные типы callback
             if call.data == "back_to_main":
                 self._handle_back_to_main(call)
+            elif call.data == "admin_panel":
+                self.chat_manager.show_admin_panel(chat_id, user_id)
+            elif call.data == "admin_users":
+                self.chat_manager.show_user_management(chat_id, user_id)
+            elif call.data == "admin_stats":
+                self.chat_manager.show_system_stats(chat_id, user_id)
+            elif call.data == "admin_settings":
+                self._handle_admin_settings(call)
             elif call.data.startswith("coord_"):
                 self._handle_coordinator_callback(call)
             elif call.data.startswith("promo_"):
@@ -314,19 +322,79 @@ class YaEduMerchBot:
     
     def _handle_coordinator_callback(self, call: CallbackQuery):
         """Обработчик callback координатора"""
-        self.bot.answer_callback_query(call.id, "Функция координатора")
+        from .keyboards import get_back_keyboard
+        
+        if call.data == "coord_add_promo":
+            content = "📢 <b>Добавление промо-пользователей</b>\n\n"
+            content += "Функция добавления промо будет реализована в следующих версиях.\n\n"
+            content += "Пока что используйте админ-панель для управления пользователями."
+        elif call.data == "coord_orders":
+            content = "📦 <b>Управление заказами</b>\n\n"
+            content += "Функция управления заказами будет реализована в следующих версиях."
+        elif call.data == "coord_inventory":
+            content = "📋 <b>Управление инвентарем</b>\n\n"
+            content += "Функция управления инвентарем будет реализована в следующих версиях."
+        else:
+            content = "🔧 <b>Функция координатора</b>\n\n"
+            content += "Эта функция будет реализована в следующих версиях."
+        
+        keyboard = get_back_keyboard("back_to_main")
+        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
     
     def _handle_promo_callback(self, call: CallbackQuery):
         """Обработчик callback промо"""
-        self.bot.answer_callback_query(call.id, "Функция промо")
+        from .keyboards import get_back_keyboard
+        
+        if call.data == "promo_create_order":
+            content = "📦 <b>Создание заказа</b>\n\n"
+            content += "Функция создания заказов будет реализована в следующих версиях."
+        elif call.data == "promo_my_orders":
+            content = "📋 <b>Мои заказы</b>\n\n"
+            content += "Функция просмотра заказов будет реализована в следующих версиях."
+        elif call.data == "promo_stats":
+            content = "📊 <b>Статистика промо</b>\n\n"
+            content += "Функция статистики будет реализована в следующих версиях."
+        else:
+            content = "📢 <b>Функция промо</b>\n\n"
+            content += "Эта функция будет реализована в следующих версиях."
+        
+        keyboard = get_back_keyboard("back_to_main")
+        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
     
     def _handle_user_callback(self, call: CallbackQuery):
         """Обработчик callback пользователя"""
-        self.bot.answer_callback_query(call.id, "Функция пользователя")
+        from .keyboards import get_back_keyboard
+        
+        if call.data == "user_create_order":
+            content = "📦 <b>Создание заказа</b>\n\n"
+            content += "Функция создания заказов будет реализована в следующих версиях."
+        elif call.data == "user_my_orders":
+            content = "📋 <b>Мои заказы</b>\n\n"
+            content += "Функция просмотра заказов будет реализована в следующих версиях."
+        elif call.data == "user_help":
+            content = "ℹ️ <b>Помощь</b>\n\n"
+            content += "Для получения помощи обратитесь к администратору или координатору."
+        else:
+            content = "👤 <b>Функция пользователя</b>\n\n"
+            content += "Эта функция будет реализована в следующих версиях."
+        
+        keyboard = get_back_keyboard("back_to_main")
+        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
     
     def _handle_order_callback(self, call: CallbackQuery):
         """Обработчик callback заказов"""
         self.bot.answer_callback_query(call.id, "Функция заказа")
+    
+    def _handle_admin_settings(self, call: CallbackQuery):
+        """Обработчик настроек администратора"""
+        from .keyboards import get_back_keyboard
+        
+        content = "⚙️ <b>Настройки системы</b>\n\n"
+        content += "Функция настроек будет реализована в следующих версиях.\n\n"
+        content += "Пока что используйте основные функции админ-панели."
+        
+        keyboard = get_back_keyboard("back_to_main")
+        self.chat_manager.update_chat_message(call.message.chat.id, content, keyboard)
     
     def handle_unknown(self, message: Message):
         """Обработчик неизвестных команд"""
