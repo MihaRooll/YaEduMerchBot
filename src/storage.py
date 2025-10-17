@@ -3,6 +3,7 @@ import os
 import logging
 import tempfile
 import shutil
+from copy import deepcopy
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 
@@ -13,12 +14,12 @@ def load_json(path: str, default: Any = None) -> Any:
     """Загрузка JSON файла с дефолтным значением"""
     try:
         if not os.path.exists(path):
-            return default
+            return deepcopy(default)
         with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Ошибка чтения файла {path}: {e}")
-        return default
+        return deepcopy(default)
 
 
 def save_json_atomic(path: str, data: Any) -> bool:
@@ -48,12 +49,25 @@ def save_json_atomic(path: str, data: Any) -> bool:
 
 class JSONStorage:
     """Класс для работы с JSON файлами данных"""
-    
+
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
+        self._file_defaults: Dict[str, Any] = {
+            "meta.json": {"next_order_id": 1},
+            "users.json": {},
+            "chats.json": [],
+            "inventory.json": {"products": {}, "sizes": {}},
+            "orders.json": [],
+            "settings.json": {},
+            "audit_log.json": {},
+            "chat_messages.json": {},
+            "merch_types.json": {"types": []},
+            "merch_colors.json": {"colors": []},
+            "merch_sizes.json": {"sizes": []},
+        }
         self._ensure_data_dir()
         self._init_data_files()
-    
+
     def _ensure_data_dir(self):
         """Создание папки для данных если не существует"""
         if not os.path.exists(self.data_dir):
@@ -62,52 +76,67 @@ class JSONStorage:
     
     def _init_data_files(self):
         """Инициализация JSON файлов с базовой структурой"""
-        files = {
-            "meta.json": {"next_order_id": 1},
-            "users.json": {},
-            "chats.json": [],
-            "inventory.json": {
-                "products": {
-                    "longsleeve_white": {
-                        "name": "Лонгслив белый",
-                        "type": "longsleeve",
-                        "base_color": "white",
-                        "sizes": {
-                            "S": {"qty_total": 10, "qty_reserved": 0},
-                            "M": {"qty_total": 15, "qty_reserved": 0},
-                            "L": {"qty_total": 12, "qty_reserved": 0}
-                        },
-                        "active": True
-                    }
-                },
-                "sizes": {
-                    "S": {"colors": {"white": {"qty_total": 10, "qty_reserved": 0}}},
-                    "M": {"colors": {"white": {"qty_total": 15, "qty_reserved": 0}}},
-                    "L": {"colors": {"white": {"qty_total": 12, "qty_reserved": 0}}}
-                }
-            },
-            "orders.json": []
-        }
-        
-        for filename, default_data in files.items():
+        for filename, default_data in self._file_defaults.items():
             filepath = os.path.join(self.data_dir, filename)
             if not os.path.exists(filepath):
                 save_json_atomic(filepath, default_data)
                 logger.info(f"Создан файл: {filename}")
-    
+
     def _get_filepath(self, filename: str) -> str:
         """Получение полного пути к файлу"""
         return os.path.join(self.data_dir, filename)
-    
+
     def _read_file(self, filename: str) -> Any:
         """Чтение JSON файла"""
         filepath = self._get_filepath(filename)
-        return load_json(filepath, {} if filename == "users.json" else [])
-    
+        default = self._file_defaults.get(filename, {})
+        data = load_json(filepath, default)
+
+        # Приводим данные к ожидаемому типу, если файл был поврежден
+        if isinstance(default, dict) and not isinstance(data, dict):
+            logger.warning(
+                "Файл %s имеет некорректный формат, ожидается dict. Восстанавливаем по умолчанию.",
+                filename,
+            )
+            return deepcopy(default)
+        if isinstance(default, list) and not isinstance(data, list):
+            logger.warning(
+                "Файл %s имеет некорректный формат, ожидается list. Восстанавливаем по умолчанию.",
+                filename,
+            )
+            return deepcopy(default)
+
+        return data
+
     def _write_file(self, filename: str, data: Any) -> bool:
         """Запись в JSON файл"""
         filepath = self._get_filepath(filename)
         return save_json_atomic(filepath, data)
+
+    def save_json_atomic(self, filename: str, data: Any) -> bool:
+        """Публичный метод для атомарного сохранения JSON"""
+        return self._write_file(filename, data)
+
+    def exists(self, filename: str, key: Optional[str] = None) -> bool:
+        """Проверяет существование файла или ключа внутри файла"""
+        filepath = self._get_filepath(filename)
+        if not os.path.exists(filepath):
+            return False
+
+        if key is None:
+            return True
+
+        data = self._read_file(filename)
+        if isinstance(data, dict):
+            return key in data
+
+        if isinstance(data, list):
+            return any(
+                isinstance(item, dict) and key in item
+                for item in data
+            )
+
+        return False
     
     def next_order_id(self) -> int:
         """Получение следующего ID заказа"""
@@ -301,18 +330,31 @@ class JSONStorage:
         return self._read_file(filename)
     
     def get(self, filename: str, key: str) -> Optional[Any]:
-        """Получить значение по ключу (только для users.json)"""
-        if filename == "users.json":
-            users = self._read_file(filename)
-            return users.get(key)
+        """Получить значение по ключу"""
+        data = self._read_file(filename)
+
+        if isinstance(data, dict):
+            return data.get(key)
+
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and str(item.get("id")) == str(key):
+                    return item
         return None
-    
+
     def set(self, filename: str, key: str, value: Any) -> bool:
-        """Установить значение по ключу (только для users.json)"""
-        if filename == "users.json":
-            users = self._read_file(filename)
-            users[key] = value
-            return self._write_file(filename, users)
+        """Установить значение по ключу"""
+        data = self._read_file(filename)
+
+        if isinstance(data, dict):
+            data[key] = value
+            return self._write_file(filename, data)
+
+        logger.error(
+            "Не удалось установить значение для файла %s: неподдерживаемый тип %s",
+            filename,
+            type(data).__name__,
+        )
         return False
     
     # Функции управления товарами
