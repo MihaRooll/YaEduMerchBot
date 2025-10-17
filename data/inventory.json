@@ -1,8 +1,30 @@
 {
+  "products": {
+    "longsleeve_white": {
+      "name": "Лонгслив белый",
+      "type": "longsleeve",
+      "base_color": "white",
+      "sizes": {
+        "S": {
+          "qty_total": 10,
+          "qty_reserved": 0
+        },
+        "M": {
+          "qty_total": 15,
+          "qty_reserved": 0
+        },
+        "L": {
+          "qty_total": 12,
+          "qty_reserved": 0
+        }
+      },
+      "active": true
+    }
+  },
   "sizes": {
     "S": {
       "colors": {
-        "_": {
+        "white": {
           "qty_total": 10,
           "qty_reserved": 0
         }
@@ -10,24 +32,16 @@
     },
     "M": {
       "colors": {
-        "_": {
-          "qty_total": 10,
+        "white": {
+          "qty_total": 15,
           "qty_reserved": 0
         }
       }
     },
     "L": {
       "colors": {
-        "_": {
-          "qty_total": 10,
-          "qty_reserved": 0
-        }
-      }
-    },
-    "XL": {
-      "colors": {
-        "_": {
-          "qty_total": 10,
+        "white": {
+          "qty_total": 12,
           "qty_reserved": 0
         }
       }
