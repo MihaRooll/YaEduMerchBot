@@ -372,3 +372,4 @@ class ChatManager:
             logger.info("Старые данные чатов очищены")
         except Exception as e:
             logger.warning(f"Не удалось очистить старые данные: {e}")
+
